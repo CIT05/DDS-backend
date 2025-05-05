@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:theme="@style/Theme.Chattybe.AppBarOverlay">
+
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <include layout="@layout/content_menu" />
+
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        app:layout_anchor="@+id/appBarLayout"
+        app:layout_anchorGravity="center"
+        app:popupTheme="@style/Theme.Chattybe.PopupOverlay">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/toolbar_title"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="Chatty"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/white"
+                app:layout_anchorGravity="center"
+                />
+            <ImageButton
+                android:id="@+id/search_button"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="10dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/icon_search"
+                android:contentDescription="Search" />
+        </FrameLayout>
+
+
+    </androidx.appcompat.widget.Toolbar>
+
+
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
