@@ -1,8 +1,10 @@
 package com.example.chatty_be;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Menu;
+import android.widget.ImageButton;
 
 import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.navigation.NavigationView;
@@ -28,6 +30,8 @@ public class MainActivity extends AppCompatActivity {
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
+        ImageButton searchButton;
+
         setSupportActionBar(binding.appBarMenu.toolbar);
 
         DrawerLayout drawer = binding.drawerLayout;
@@ -41,6 +45,13 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_menu);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
+
+        searchButton = findViewById(R.id.search_button);
+
+        searchButton.setOnClickListener(v -> {
+            Intent intent = new  Intent(MainActivity.this, SearchUserActivity.class);
+            startActivity(intent);
+        });
     }
 
     @Override
