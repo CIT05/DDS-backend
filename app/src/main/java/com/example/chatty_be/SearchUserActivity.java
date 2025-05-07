@@ -82,7 +82,9 @@ public class SearchUserActivity extends AppCompatActivity {
     protected void onStop() {
         super.onStop();
         if(adapter != null)
+            recyclerView.setAdapter(null);
             adapter.stopListening();
+
     }
 
     @Override
