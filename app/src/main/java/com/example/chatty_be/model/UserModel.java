@@ -10,6 +10,8 @@ public class UserModel {
     private Timestamp createdTimestamp;
     private String userId;
 
+    private String fcmToken;
+
 
     public String getPhone() {
         return phone;
@@ -53,6 +55,11 @@ public class UserModel {
         this.userId = userId;
     }
 
+    public String getFcmToken() {
+        return fcmToken;
+    }
 
-
+    public void setFcmToken(String fcmToken) {
+        this.fcmToken = fcmToken;
+    }
 }
