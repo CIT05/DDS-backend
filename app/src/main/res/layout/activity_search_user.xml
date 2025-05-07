@@ -4,15 +4,91 @@
     android:id="@+id/search"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".SearchUserActivity">
+    tools:context=".SearchUserActivity"
+    android:fitsSystemWindows="true"
+    >
 
-    <ImageButton
-        android:id="@+id/back_button"
-        android:layout_width="wrap_content"
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        app:layout_anchor="@+id/search"
+        app:layout_anchorGravity="center"
+        app:popupTheme="@style/Theme.Chattybe.PopupOverlay">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Search contacts"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="@color/white"
+                android:layout_marginStart="30dp"
+                android:layout_centerVertical="true"
+                android:layout_toRightOf="@id/back_button"/>
+
+            <ImageButton
+                android:id="@+id/back_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_centerVertical="true"
+                android:src="@drawable/arrow_back"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                app:tint="@color/white"/>
+
+        </FrameLayout>
+
+
+    </androidx.appcompat.widget.Toolbar>
+
+
+
+    <RelativeLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_alignParentStart="true"
-        android:layout_margin="50dp"
-        android:src="@drawable/arrow_back"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="Back" />
+        android:layout_below="@+id/toolbar"
+        android:layout_margin="10dp"
+        android:id="@+id/search_user_layout">
+
+        <EditText
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/edit_text_rounded_corner"
+            android:layout_margin="10dp"
+            android:hint="Username"
+            android:singleLine="true"
+            android:padding="10dp"
+            android:elevation="4dp"
+            android:layout_toLeftOf="@+id/search_user_btn"
+            android:id="@+id/search_username_input"
+
+
+            />
+        <ImageButton
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/icon_search"
+            android:layout_alignParentEnd="true"
+            android:id="@+id/search_user_btn"
+            android:layout_centerVertical="true"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            app:tint="@color/darkBlue"
+            android:padding="4dp"
+            android:layout_margin="10dp"
+            />
+
+    </RelativeLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/search_user_layout"
+        android:padding="10dp"
+        android:id="@+id/search_user_recycler_view" />
 </RelativeLayout>
