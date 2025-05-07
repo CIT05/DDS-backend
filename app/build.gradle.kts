@@ -54,4 +54,5 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics")
     implementation("com.hbb20:ccp:2.5.0")
     implementation("com.google.firebase:firebase-auth")
+    implementation ("com.firebaseui:firebase-ui-firestore:9.0.0")
 }
