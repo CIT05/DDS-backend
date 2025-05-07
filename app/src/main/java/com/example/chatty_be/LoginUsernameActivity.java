@@ -67,6 +67,7 @@ public class LoginUsernameActivity extends AppCompatActivity {
             userModel = new UserModel(phoneNumber, username, Timestamp.now(), FirebaseUtil.getCurrentUserId());
         }
 
+
         FirebaseUtil.currentUserDetails().set(userModel).addOnCompleteListener(task -> {
             setInProgress(false);
             if(task.isSuccessful()){

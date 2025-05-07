@@ -24,12 +24,12 @@ public class ChatMessageModel {
         this.message = message;
     }
 
-    public String getSenderId() {
+    public String getSendeerId() {
         return sendeerId;
     }
 
-    public void setSenderId(String senderId) {
-        this.sendeerId = senderId;
+    public void setSendeerId(String sendeerId) {
+        this.sendeerId = sendeerId;
     }
 
     public Timestamp getTimestamp() {
