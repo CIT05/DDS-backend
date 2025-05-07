@@ -6,5 +6,6 @@
     <color name="secondary">#67142D6F</color>
     <color name="offWhite">#FAFAFA</color>
     <color name="darkBlue">#3F51B5</color>
-
+    <color name="chat_color_sender">#39416251</color>
+    <color name="chat_color_receiver">#1E88E5</color>
 </resources>
