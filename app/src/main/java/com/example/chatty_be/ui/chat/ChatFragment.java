@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
 import com.example.chatty_be.databinding.FragmentChatBinding;
+import com.example.chatty_be.databinding.FragmentProfileBinding;
 
 public class ChatFragment extends Fragment {
 
@@ -28,7 +29,6 @@ public class ChatFragment extends Fragment {
         galleryViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
         return root;
     }
-
     @Override
     public void onDestroyView() {
         super.onDestroyView();
