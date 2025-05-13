@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/addReview"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
+    tools:context=".AddReviewActivity">
+
+    <androidx.appcompat.widget.Toolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="?attr/colorPrimary"
+        app:layout_anchor="@+id/addReview"
+        app:layout_anchorGravity="center"
+        app:popupTheme="@style/Theme.Chattybe.PopupOverlay">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="30dp"
+                android:layout_toRightOf="@id/back_button"
+                android:text="Add a review"
+                android:textColor="@color/white"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/back_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_centerVertical="true"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                android:src="@drawable/arrow_back"
+                app:tint="@color/white" />
+        </FrameLayout>
+    </androidx.appcompat.widget.Toolbar>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/toolbar"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Name Location -->
+            <TextView
+                android:id="@+id/tvNameLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="16dp"
+                android:text="Name Location"
+                android:textSize="20sp" />
+
+            <EditText
+                android:id="@+id/etNameLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/edit_text_rounded_corner"
+                android:elevation="5dp"
+                android:hint="Add the name of the location"
+                android:inputType="textCapWords"
+                android:padding="10dp" />
+
+            <!-- Description -->
+            <TextView
+                android:id="@+id/tvDescriptionLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="16dp"
+                android:text="Description"
+                android:textSize="20sp" />
+
+            <EditText
+                android:id="@+id/etDescription"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/edit_text_rounded_corner"
+                android:elevation="5dp"
+                android:gravity="start|top"
+                android:hint="What did you like about this location?"
+                android:inputType="textMultiLine"
+                android:maxLines="6"
+                android:minLines="3"
+                android:padding="10dp" />
+
+            <TextView
+                android:id="@+id/tvLocationTypeLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginTop="16dp"
+                android:text="Type of location"
+                android:textSize="20sp" />
+
+            <Spinner
+                android:id="@+id/spLocationType"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_margin="10dp"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/edit_text_rounded_corner"
+                android:elevation="5dp"
+                android:entries="@array/location_types"
+                android:padding="10dp" />
+
+            <ImageView
+                android:id="@+id/btnAddImage"
+                android:layout_width="350dp"
+                android:layout_height="350dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/grey_box"
+                android:foreground="?attr/selectableItemBackgroundBorderless"
+                android:scaleType="centerCrop"
+                />
+
+            <TextView
+                android:id="@+id/tvAddImage"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:text="Add an image"
+                android:textColor="#757575"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+
+    </ScrollView>
+
+</RelativeLayout>

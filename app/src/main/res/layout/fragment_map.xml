@@ -28,6 +28,18 @@
         </FrameLayout>
     </RelativeLayout>
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/add_review_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginRight="8dp"
+        android:layout_marginTop="120dp"
+        android:tint="@android:color/white"
+        app:backgroundTint="@android:color/white"
+        app:srcCompat="@android:drawable/ic_input_add" />
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"

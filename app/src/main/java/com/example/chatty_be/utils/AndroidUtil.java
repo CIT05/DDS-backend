@@ -2,8 +2,13 @@ package com.example.chatty_be.utils;
 
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
+import android.widget.ImageView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.request.RequestOptions;
+import com.example.chatty_be.R;
 import com.example.chatty_be.model.UserModel;
 
 public class AndroidUtil {
@@ -17,7 +22,6 @@ public class AndroidUtil {
         intent.putExtra("userId", model.getUserId());
     }
 
-
     public  static UserModel getuserModelFromIntent(Intent intent ){
         UserModel userModel = new UserModel();
         userModel.setUsername(intent.getStringExtra("username"));
@@ -26,4 +30,10 @@ public class AndroidUtil {
 
         return  userModel;
     }
+
+    public static void setReviewPic(Context context, Uri imageUri, ImageView imageView) {
+        Glide.with(context).load(imageUri).placeholder(R.drawable.plus_icon).error(R.drawable.plus_icon).into(imageView);
+
+    }
+
 }

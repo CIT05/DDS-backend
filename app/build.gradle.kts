@@ -59,5 +59,7 @@ dependencies {
     implementation ("com.google.firebase:firebase-messaging")
     implementation("com.mapbox.maps:android:11.12.0")
     implementation("com.google.android.gms:play-services-location:21.0.1")
+    implementation("com.github.dhaval2404:imagepicker:2.1")
+    implementation("com.github.bumptech.glide:glide:4.16.0")
 
 }
