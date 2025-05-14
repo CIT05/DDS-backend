@@ -1,9 +1,12 @@
 package com.example.chatty_be;
 
 import android.os.Bundle;
+import android.util.Base64;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
@@ -16,6 +19,8 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatty_be.adapter.ChatRecyclerAdapter;
 import com.example.chatty_be.adapter.SearchUserRecyclerAdapter;
+import com.example.chatty_be.crypto.ChatSession;
+import com.example.chatty_be.crypto.EncryptedMessage;
 import com.example.chatty_be.model.ChatMessageModel;
 import com.example.chatty_be.model.ChatRoomModel;
 import com.example.chatty_be.model.UserModel;
@@ -28,7 +33,11 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.Query;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Executors;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -43,6 +52,10 @@ public class ChatActivity extends AppCompatActivity {
     TextView otherUsername;
 
     RecyclerView recyclerView;
+
+    ChatSession chatSession;
+
+    EncryptedMessage encryptedMessage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,36 +88,65 @@ public class ChatActivity extends AppCompatActivity {
 
         }));
 
+        chatSession = new ChatSession(otherUser.getUserId());
+
+        // ⚡ clearly call initialise() and wait for completion
+        chatSession.initialise().addOnSuccessListener(unused -> {
+            Log.d("ChatActivity", "ChatSession initialized successfully!");
+            setupChatRecyclerView();  // Initialize RecyclerView AFTER chatSession is ready
+        }).addOnFailureListener(e -> {
+            Log.e("ChatActivity", "ChatSession initialization failed", e);
+            Toast.makeText(this, "Encryption setup failed!", Toast.LENGTH_LONG).show();
+        });
+
         getOrCreateChatRoomModel();
 
         setupChatRecyclerView();
-
-
     }
 
-    void sendMessageToUser(String message){
+    void sendMessageToUser(String message) {
+        if (chatSession == null) {
+            Toast.makeText(this, "Encryption session not ready!", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
-        chatRoomModel.setLastMessageTimestamp(Timestamp.now());
-        chatRoomModel.setLastMessageSenderId(FirebaseUtil.getCurrentUserId());
-        chatRoomModel.setLastMessage(message);
-        FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
+        Executors.newSingleThreadExecutor().execute(() -> {
+            try {
+                // Encrypt your message
+                encryptedMessage  = chatSession.encrypt(message.getBytes(StandardCharsets.UTF_8));
 
+                chatRoomModel.setLastMessageTimestamp(Timestamp.now());
+                chatRoomModel.setLastMessageSenderId(FirebaseUtil.getCurrentUserId());
+                chatRoomModel.setLastMessage("[Encrypted message]");
+                FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
 
-        ChatMessageModel chatMessageModel = new ChatMessageModel(message,FirebaseUtil.getCurrentUserId(), Timestamp.now());
+                // Store encrypted message in Firestore
+                Map<String, Object> doc = new HashMap<>();
+                doc.put("cipher", Base64.encodeToString(encryptedMessage.cipher, Base64.NO_WRAP));
+                doc.put("iv", Base64.encodeToString(encryptedMessage.iv, Base64.NO_WRAP));
+                doc.put("ratchetIndex", encryptedMessage.ratchetIndex);
+                doc.put("senderId", FirebaseUtil.getCurrentUserId());
+                doc.put("timestamp", Timestamp.now());
 
-        FirebaseUtil.getChatRoomMessageReference(chatRoomId).add(chatMessageModel)
-                .addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
-                    @Override
-                    public void onComplete(@NonNull Task<DocumentReference> task) {
-                        if(task.isSuccessful()){
-                            messageInput.setText("");
-                        }
-                    }
-                });
+                FirebaseUtil.getChatRoomMessageReference(chatRoomId).add(doc)
+                        .addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                runOnUiThread(() -> messageInput.setText(""));
+                            } else {
+                                Log.e("SendMessage", "Message failed", task.getException());
+                            }
+                        });
 
+            } catch (Exception e) {
+                Log.e("SendMessage", "Encryption failed", e);
+            }
+        });
     }
+
 
     void getOrCreateChatRoomModel(){
+
+
         FirebaseUtil.getChatRoomReference(chatRoomId).get().addOnCompleteListener(task -> {
             if(task.isSuccessful()){
                 chatRoomModel = task.getResult().toObject(ChatRoomModel.class);
@@ -124,14 +166,17 @@ public class ChatActivity extends AppCompatActivity {
     }
 
 
-    void setupChatRecyclerView(){
+    void setupChatRecyclerView() {
         Query query = FirebaseUtil.getChatRoomMessageReference(chatRoomId)
                 .orderBy("timestamp", Query.Direction.DESCENDING);
 
-        FirestoreRecyclerOptions<ChatMessageModel> options = new FirestoreRecyclerOptions.Builder<ChatMessageModel>()
-                .setQuery(query, ChatMessageModel.class).build();
+        FirestoreRecyclerOptions<ChatMessageModel> options =
+                new FirestoreRecyclerOptions.Builder<ChatMessageModel>()
+                        .setQuery(query, ChatMessageModel.class)
+                        .build();
 
-        adapter = new ChatRecyclerAdapter(options, getApplicationContext());
+        adapter = new ChatRecyclerAdapter(options, getApplicationContext(), chatSession);
+
         LinearLayoutManager manager = new LinearLayoutManager(this);
         manager.setReverseLayout(true);
         recyclerView.setLayoutManager(manager);
@@ -141,11 +186,11 @@ public class ChatActivity extends AppCompatActivity {
         adapter.registerAdapterDataObserver(new RecyclerView.AdapterDataObserver() {
             @Override
             public void onItemRangeInserted(int positionStart, int itemCount) {
-                super.onItemRangeInserted(positionStart, itemCount);
                 recyclerView.smoothScrollToPosition(0);
             }
         });
     }
+
 
 
 }

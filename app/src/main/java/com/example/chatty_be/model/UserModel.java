@@ -12,6 +12,8 @@ public class UserModel {
 
     private String fcmToken;
 
+    private String identityPub;
+
 
     public String getPhone() {
         return phone;
@@ -48,11 +50,12 @@ public class UserModel {
     public UserModel() {
     }
 
-    public UserModel(String phone, String username, Timestamp createdTimestamp, String userId) {
+    public UserModel(String phone, String username, Timestamp createdTimestamp, String userId, String identityPub) {
         this.phone = phone;
         this.username = username;
         this.createdTimestamp = createdTimestamp;
         this.userId = userId;
+        this.identityPub = identityPub;
     }
 
     public String getFcmToken() {
@@ -62,4 +65,7 @@ public class UserModel {
     public void setFcmToken(String fcmToken) {
         this.fcmToken = fcmToken;
     }
+
+    public String getIdentityPub() { return identityPub; }
+    public void setIdentityPub(String identityPub) { this.identityPub = identityPub; }
 }
