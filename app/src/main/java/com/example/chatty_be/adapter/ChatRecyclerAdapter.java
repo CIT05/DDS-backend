@@ -14,19 +14,24 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatty_be.ChatActivity;
+import com.example.chatty_be.ChatSession;
 import com.example.chatty_be.R;
 import com.example.chatty_be.model.ChatMessageModel;
 import com.example.chatty_be.ui.chat.ChatFragment;
 import com.example.chatty_be.utils.AndroidUtil;
 import com.example.chatty_be.utils.FirebaseUtil;
+import com.example.chatty_be.utils.MessagesUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 
 public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageModel, ChatRecyclerAdapter.ChatModelViewHolder> {
     Context context;
-    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context ) {
+
+    ChatSession chatSession;
+    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context, ChatSession chatSession) {
         super(options);
         this.context = context;
+        this.chatSession = chatSession;
     }
 
     @Override
@@ -39,9 +44,26 @@ public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageMod
             holder.rightChatTextView.setText(model.getMessage());
 
         }else{
+
+
             holder.rightChatLayout.setVisibility(View.GONE);
             holder.leftChatLayout.setVisibility(View.VISIBLE);
-            holder.leftChatTextView.setText(model.getMessage());
+
+            String decryptedMessage = "[Encrypted]";
+            if (model.getEncryptedMessage() != null) {
+                try {
+                    decryptedMessage = MessagesUtil.decryptMessage(
+                            model.getEncryptedMessage().ciphertext,
+                            model.getEncryptedMessage().iv,
+                            chatSession
+                    );
+                } catch (Exception e) {
+                    Log.e("ChatAdapter", "Decryption failed", e);
+                    decryptedMessage = "[Decryption failed]";
+                }
+            }
+
+            holder.leftChatTextView.setText(decryptedMessage);
         }
 
     }
