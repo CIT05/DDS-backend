@@ -3,6 +3,8 @@ package com.example.chatty_be;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
+import android.util.Base64;
 import android.util.Log;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -24,6 +26,8 @@ import com.example.chatty_be.model.ChatRoomModel;
 import com.example.chatty_be.model.UserModel;
 import com.example.chatty_be.utils.AndroidUtil;
 import com.example.chatty_be.utils.FirebaseUtil;
+import com.example.chatty_be.utils.KeyUtil;
+import com.example.chatty_be.utils.MessagesUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -31,6 +35,7 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.Query;
 
+import java.security.PublicKey;
 import java.util.Arrays;
 
 public class ChatActivity extends AppCompatActivity {
@@ -44,8 +49,12 @@ public class ChatActivity extends AppCompatActivity {
     ImageButton sendMessageButton;
     ImageButton backButton;
     TextView otherUsername;
-
     RecyclerView recyclerView;
+
+    private ChatSession chatSession;
+    private String ciphertext;
+    private String iv;
+    private String ephemeralPublicKey;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,17 +62,24 @@ public class ChatActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_chat);
 
-        // TODO: MOVE IT TO WHERE WE IMPLEMENT THE FRIEND REQUEST
         FriendRequestManager manager = new FriendRequestManager(this);
 
-        manager.onFriendshipAccept();
 
         String userId= "tzHamc8cTIc5uE0wwEaJCj2cUDF3";
+        String friendPublicKeyEncoded = manager.extractFriendPublicKey(userId);
+        Log.d("FriendPublicKey", "Friend public key fetched: " + friendPublicKeyEncoded);
 
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            String friendPublicKey= manager.extractFriendPublicKey(userId);
-            Log.d("FriendPublicKey", "Friend public key fetched: " + friendPublicKey);
-        }, 3000);
+        try {
+            byte[] rawKey = Base64.decode(friendPublicKeyEncoded, Base64.NO_WRAP);
+            PublicKey friendPublicKey = KeyUtil.decodePublicKey(rawKey);
+            chatSession = new ChatSession(friendPublicKey);
+
+            Log.d("ChatSession", "Ephemeral pub key: " +
+                    Base64.encodeToString(chatSession.getEphemeralPublicKeyEncoded(), Base64.NO_WRAP));
+        } catch (Exception e) {
+            Log.e("ChatSession", "Failed to initialize chat session", e);
+        }
+
 
 
         otherUser = AndroidUtil.getuserModelFromIntent(getIntent());
@@ -104,8 +120,18 @@ public class ChatActivity extends AppCompatActivity {
         chatRoomModel.setLastMessage(message);
         FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
 
+        EncryptedMessage encrypted = MessagesUtil.encryptMessage(message, chatSession);
 
-        ChatMessageModel chatMessageModel = new ChatMessageModel(message,FirebaseUtil.getCurrentUserId(), Timestamp.now());
+        if (encrypted == null) {
+            Log.e("ChatEncrypt", "Encryption failed, message not sent");
+            return;
+        }
+
+        ChatMessageModel chatMessageModel = new ChatMessageModel(
+                encrypted,
+                FirebaseUtil.getCurrentUserId(),
+                Timestamp.now()
+        );
 
         FirebaseUtil.getChatRoomMessageReference(chatRoomId).add(chatMessageModel)
                 .addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
@@ -146,7 +172,7 @@ public class ChatActivity extends AppCompatActivity {
         FirestoreRecyclerOptions<ChatMessageModel> options = new FirestoreRecyclerOptions.Builder<ChatMessageModel>()
                 .setQuery(query, ChatMessageModel.class).build();
 
-        adapter = new ChatRecyclerAdapter(options, getApplicationContext());
+        adapter = new ChatRecyclerAdapter(options, getApplicationContext(), chatSession);
         LinearLayoutManager manager = new LinearLayoutManager(this);
         manager.setReverseLayout(true);
         recyclerView.setLayoutManager(manager);

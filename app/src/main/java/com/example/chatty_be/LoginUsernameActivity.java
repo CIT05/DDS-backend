@@ -2,6 +2,8 @@ package com.example.chatty_be;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Base64;
 import android.util.Log;
 import android.view.View;
@@ -20,6 +22,7 @@ import com.example.chatty_be.crypto.CryptoManager;
 import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.UserModel;
 import com.example.chatty_be.utils.FirebaseUtil;
+import com.example.chatty_be.utils.KeyUtil;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
@@ -81,9 +84,14 @@ public class LoginUsernameActivity extends AppCompatActivity {
                 PublicKey publicKey = KeyManager.getPublicKey();
                 Log.d("KeyGen", "Generating public key" + publicKey);
 
-                String encodedPublicKey = Base64.encodeToString(publicKey.getEncoded(), Base64.NO_WRAP);
+                String encodedPublicKey = Base64.encodeToString(KeyUtil.encodePublicKey(publicKey), Base64.NO_WRAP);
 
                 userModel = new UserModel(phoneNumber, username, Timestamp.now(), FirebaseUtil.getCurrentUserId(), encodedPublicKey);
+
+                // TODO: MOVE IT TO WHERE WE IMPLEMENT THE FRIEND REQUEST
+                FriendRequestManager manager = new FriendRequestManager(this);
+
+                manager.onFriendshipAccept();
 
             } catch (Exception e){
                 Log.e("KeyGen", "Failed to generate or upload identity key", e);
