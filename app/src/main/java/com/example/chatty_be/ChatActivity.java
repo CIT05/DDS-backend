@@ -1,6 +1,9 @@
 package com.example.chatty_be;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -49,6 +52,18 @@ public class ChatActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_chat);
+
+        // TODO: MOVE IT TO WHERE WE IMPLEMENT THE FRIEND REQUEST
+        FriendRequestManager manager = new FriendRequestManager(this);
+
+        manager.onFriendshipAccept();
+
+        String userId= "tzHamc8cTIc5uE0wwEaJCj2cUDF3";
+
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            String friendPublicKey= manager.extractFriendPublicKey(userId);
+            Log.d("FriendPublicKey", "Friend public key fetched: " + friendPublicKey);
+        }, 3000);
 
 
         otherUser = AndroidUtil.getuserModelFromIntent(getIntent());

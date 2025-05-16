@@ -10,6 +10,8 @@ public class UserModel {
     private Timestamp createdTimestamp;
     private String userId;
 
+    private String publicKey;
+
     private String fcmToken;
 
 
@@ -48,11 +50,20 @@ public class UserModel {
     public UserModel() {
     }
 
-    public UserModel(String phone, String username, Timestamp createdTimestamp, String userId) {
+    public String getPublicKey() {
+        return publicKey;
+    }
+
+    public void setPublicKey(String publicKey) {
+        this.publicKey = publicKey;
+    }
+
+    public UserModel(String phone, String username, Timestamp createdTimestamp, String userId, String publicKey) {
         this.phone = phone;
         this.username = username;
         this.createdTimestamp = createdTimestamp;
         this.userId = userId;
+        this.publicKey = publicKey;
     }
 
     public String getFcmToken() {

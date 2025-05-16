@@ -2,6 +2,8 @@ package com.example.chatty_be;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Base64;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -14,6 +16,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.example.chatty_be.crypto.CryptoManager;
+import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.UserModel;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -21,6 +25,8 @@ import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.auth.User;
+
+import java.security.PublicKey;
 
 public class LoginUsernameActivity extends AppCompatActivity {
 
@@ -61,10 +67,29 @@ public class LoginUsernameActivity extends AppCompatActivity {
         }
 
         setInProgress(true);
-        if(userModel != null){
-            userModel.setUsername(username);
+
+        boolean isNewUser = (userModel == null);
+
+        System.out.println("isNewUser" + isNewUser);
+        if(isNewUser){
+
+
+            // Generate identity key for new users and upload to firebase
+            try {
+                KeyManager.generateIdentityKeyPair();
+                CryptoManager.generateAESKey();
+                PublicKey publicKey = KeyManager.getPublicKey();
+                Log.d("KeyGen", "Generating public key" + publicKey);
+
+                String encodedPublicKey = Base64.encodeToString(publicKey.getEncoded(), Base64.NO_WRAP);
+
+                userModel = new UserModel(phoneNumber, username, Timestamp.now(), FirebaseUtil.getCurrentUserId(), encodedPublicKey);
+
+            } catch (Exception e){
+                Log.e("KeyGen", "Failed to generate or upload identity key", e);
+            }
         }else {
-            userModel = new UserModel(phoneNumber, username, Timestamp.now(), FirebaseUtil.getCurrentUserId());
+            userModel.setUsername(username);
         }
 
 
