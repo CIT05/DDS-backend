@@ -1,43 +1,37 @@
 package com.example.chatty_be.adapter;
 
 import android.content.Context;
-import android.content.Intent;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.chatty_be.ChatActivity;
 import com.example.chatty_be.ChatSession;
 import com.example.chatty_be.R;
+import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.ChatMessageModel;
-import com.example.chatty_be.ui.chat.ChatFragment;
-import com.example.chatty_be.utils.AndroidUtil;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.example.chatty_be.utils.MessagesUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 
+import java.security.PrivateKey;
+
 public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageModel, ChatRecyclerAdapter.ChatModelViewHolder> {
     Context context;
 
-    ChatSession chatSession;
-    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context, ChatSession chatSession) {
+    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context) {
         super(options);
         this.context = context;
-        this.chatSession = chatSession;
     }
 
     @Override
     protected void onBindViewHolder(@NonNull ChatModelViewHolder holder, int position, @NonNull ChatMessageModel model) {
-        Log.d("ChatAdapter", "Current UID: " + FirebaseUtil.getCurrentUserId() + ", SenderID: " + model.getSendeerId());
-
         if(model.getSendeerId() != null && model.getSendeerId().equals(FirebaseUtil.getCurrentUserId())){
             holder.leftChatLayout.setVisibility(View.GONE);
             holder.rightChatLayout.setVisibility(View.VISIBLE);
@@ -52,11 +46,17 @@ public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageMod
             String decryptedMessage = "[Encrypted]";
             if (model.getEncryptedMessage() != null) {
                 try {
+                    PrivateKey myPrivateKey = KeyManager.getPrivateKey(context);
+
+                    ChatSession session = ChatSession.forReceiving(myPrivateKey, model.getEncryptedMessage().getEphemeralPublicKey());
+
                     decryptedMessage = MessagesUtil.decryptMessage(
-                            model.getEncryptedMessage().ciphertext,
-                            model.getEncryptedMessage().iv,
-                            chatSession
+                            model.getEncryptedMessage().getCiphertext(),
+                            model.getEncryptedMessage().getIv(),
+                            session
                     );
+
+                    System.out.println("Decrypted message: " + decryptedMessage);
                 } catch (Exception e) {
                     Log.e("ChatAdapter", "Decryption failed", e);
                     decryptedMessage = "[Decryption failed]";

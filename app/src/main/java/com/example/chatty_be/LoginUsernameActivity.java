@@ -39,6 +39,10 @@ public class LoginUsernameActivity extends AppCompatActivity {
     String phoneNumber;
     UserModel userModel;
 
+
+
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -73,15 +77,12 @@ public class LoginUsernameActivity extends AppCompatActivity {
 
         boolean isNewUser = (userModel == null);
 
-        System.out.println("isNewUser" + isNewUser);
         if(isNewUser){
 
-
-            // Generate identity key for new users and upload to firebase
             try {
-                KeyManager.generateIdentityKeyPair();
+                KeyManager.generateIdentityKeyPair(this);
                 CryptoManager.generateAESKey();
-                PublicKey publicKey = KeyManager.getPublicKey();
+                PublicKey publicKey = KeyManager.getPublicKey(this);
                 Log.d("KeyGen", "Generating public key" + publicKey);
 
                 String encodedPublicKey = Base64.encodeToString(KeyUtil.encodePublicKey(publicKey), Base64.NO_WRAP);
@@ -90,8 +91,6 @@ public class LoginUsernameActivity extends AppCompatActivity {
 
                 // TODO: MOVE IT TO WHERE WE IMPLEMENT THE FRIEND REQUEST
                 FriendRequestManager manager = new FriendRequestManager(this);
-
-                manager.onFriendshipAccept();
 
             } catch (Exception e){
                 Log.e("KeyGen", "Failed to generate or upload identity key", e);

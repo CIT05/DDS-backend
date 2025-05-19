@@ -18,7 +18,7 @@ public class MessagesUtil {
             byte[] aesKey = session.getNextAESKey();
             SecretKey secretKey = new SecretKeySpec(aesKey, "AES");
 
-            byte[] iv = new byte[12]; // GCM standard
+            byte[] iv = new byte[12];
             byte[] ciphertext = EncryptionUtil.encrypt(plaintext, secretKey, iv);
 
             return new EncryptedMessage(
@@ -34,10 +34,13 @@ public class MessagesUtil {
 
     public static String decryptMessage(String base64Ciphertext, String base64IV, ChatSession session) {
         try {
+
             byte[] aesKey = session.getNextAESKey();
+
             SecretKey secretKey = new SecretKeySpec(aesKey, "AES");
 
-            byte[] ciphertext = Base64.decode(base64Ciphertext, Base64.NO_WRAP);
+            byte[] ciphertext = Base64.decode(base64Ciphertext,Base64.NO_WRAP);
+
             byte[] iv = Base64.decode(base64IV, Base64.NO_WRAP);
 
             return EncryptionUtil.decrypt(ciphertext, secretKey, iv);
