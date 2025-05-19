@@ -13,8 +13,7 @@ public class FriendRequestManager {
         this.context = context;
     }
 
-        public void onFriendshipAccept() {
-            String friendUserId = "tzHamc8cTIc5uE0wwEaJCj2cUDF3";
+        public void onFriendshipAccept(String friendUserId) {
 
             FirebaseUtil.getUserByUserId(friendUserId).get()
                     .addOnSuccessListener(documentSnapshot -> {
@@ -22,12 +21,10 @@ public class FriendRequestManager {
                             String friendPublicKey = documentSnapshot.getString("publicKey");
 
                             try {
-                                EncryptedStorePreference secureStorePreference = new EncryptedStorePreference(context);
-                                secureStorePreference.put(friendUserId, friendPublicKey);
-                                Log.d("SecurePrefs", "Stored mock public key for " + friendUserId);
-                                Log.d("SecurePrefs", "Stored mock public key for " + friendPublicKey);
+                                EncryptedStorePreference encryptedStorePreference = new EncryptedStorePreference(context);
+                                encryptedStorePreference.put(friendUserId, friendPublicKey);
                             } catch (Exception e) {
-                                Log.e("SecurePrefs", "Failed to securely store friend key", e);
+                                Log.e("encryptedStorePreference", "Failed to securely store friend key", e);
                             }
                         }
                     })
@@ -37,15 +34,14 @@ public class FriendRequestManager {
 
         }
     public String extractFriendPublicKey(String userId) {
-        EncryptedStorePreference securePrefs = new EncryptedStorePreference(context);
-        String friendPublicKey = securePrefs.get(userId);
+        EncryptedStorePreference encryptedStorePreference = new EncryptedStorePreference(context);
+        String friendPublicKey = encryptedStorePreference.get(userId);
 
         if (friendPublicKey == null || friendPublicKey.isEmpty()) {
-            Log.w("SecurePrefs", "No public key found for user: " + userId);
+            Log.w("EncryptedStorePreference", "No public key found for user: " + userId);
             return "";
         }
 
-        Log.d("SecurePrefs", "Retrieved public key for user: " + userId);
         return friendPublicKey;
     }
     }

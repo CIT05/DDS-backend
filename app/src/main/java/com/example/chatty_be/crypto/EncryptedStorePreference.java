@@ -5,37 +5,43 @@ import android.content.SharedPreferences;
 import android.util.Base64;
 import android.util.Log;
 
-import com.example.chatty_be.crypto.CryptoManager;
-import com.example.chatty_be.utils.EncryptionUtil;
-
+import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.GCMParameterSpec;
 
 public class EncryptedStorePreference {
 
-    private static final String PREF_NAME = "secure_prefs_native";
+    private static final String PREF_NAME = "encrypted_secure_store";
+
+    private static final int BASE64_FLAGS = Base64.NO_WRAP;
     private final SharedPreferences preferences;
+
 
     public EncryptedStorePreference(Context context) {
         preferences = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE);
         try {
             CryptoManager.generateAESKey();
         } catch (Exception e) {
-            Log.e("EncryptedStore", "Failed to create Keystore key", e);
+            Log.e("EncryptedStorePreference", "Failed to create Keystore key", e);
         }
     }
 
     public void put(String key, String value) {
         try {
             SecretKey secretKey = CryptoManager.getSecretKey();
-            byte[] iv = new byte[12];
-            byte[] encrypted = EncryptionUtil.encrypt(value, secretKey, iv);
+
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
+
+            byte[] iv = cipher.getIV();
+            byte[] encrypted = cipher.doFinal(value.getBytes());
 
             preferences.edit()
-                    .putString(key + "_data", Base64.encodeToString(encrypted, Base64.NO_WRAP))
-                    .putString(key + "_iv", Base64.encodeToString(iv, Base64.NO_WRAP))
+                    .putString(key + "_data", Base64.encodeToString(encrypted, BASE64_FLAGS))
+                    .putString(key + "_iv", Base64.encodeToString(iv, BASE64_FLAGS))
                     .apply();
         } catch (Exception e) {
-            Log.e("EncryptedStore", "Encryption failed", e);
+            Log.e("EncryptedStorePreference", "Encryption failed", e);
         }
     }
 
@@ -46,14 +52,19 @@ public class EncryptedStorePreference {
 
             if (encryptedBase64 == null || ivBase64 == null) return null;
 
-            byte[] encrypted = Base64.decode(encryptedBase64, Base64.NO_WRAP);
-            byte[] iv = Base64.decode(ivBase64, Base64.NO_WRAP);
+            byte[] encrypted = Base64.decode(encryptedBase64, BASE64_FLAGS);
+            byte[] iv = Base64.decode(ivBase64, BASE64_FLAGS);
 
             SecretKey secretKey = CryptoManager.getSecretKey();
-            return EncryptionUtil.decrypt(encrypted, secretKey, iv);
 
+            Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
+            GCMParameterSpec spec = new GCMParameterSpec(128, iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec);
+
+            byte[] plainBytes = cipher.doFinal(encrypted);
+            return new String(plainBytes);
         } catch (Exception e) {
-            Log.e("EncryptedStore", "Decryption failed", e);
+            Log.e("EncryptedStorePreference", "Decryption failed", e);
             return null;
         }
     }

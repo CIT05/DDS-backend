@@ -1,12 +1,15 @@
 package com.example.chatty_be;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Base64;
 import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.widget.ImageButton;
 
+import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -22,6 +25,7 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.chatty_be.databinding.ActivityMainBinding;
+import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends AppCompatActivity {
@@ -59,6 +63,29 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
+
+        // test- fetching all users public keys
+        FriendRequestManager manager = new FriendRequestManager(this);
+
+        FirebaseUtil.allUsersCollectionReference()
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+                    String currentUserId = FirebaseUtil.getCurrentUserId();
+
+                    for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
+                        String userId = doc.getId();
+
+                        if (!userId.equals(currentUserId)) {
+                            manager.onFriendshipAccept(userId);
+                        }
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("UserFetch", "Failed to fetch users", e);
+                });
+
+        checkAndSyncPublicKey(this);
+
         getFCMToken();
     }
 
@@ -85,4 +112,30 @@ public class MainActivity extends AppCompatActivity {
         });
 
     }
+
+    void checkAndSyncPublicKey(Context context) {
+        FirebaseUtil.currentUserDetails().get().addOnSuccessListener(snapshot -> {
+            try {
+                String localKey = Base64.encodeToString(
+                        KeyManager.getPublicKey(context).getEncoded(),
+                        Base64.NO_WRAP
+                );
+
+                String firestoreKey = snapshot.getString("publicKey");
+
+                if (!localKey.equals(firestoreKey)) {
+                    Log.w("KeyCheck", "Uploading public key to Firebase");
+                    FirebaseUtil.currentUserDetails().update("publicKey", localKey)
+                            .addOnSuccessListener(aVoid -> Log.d("KeyCheck", "Uploaded public key to firebase"))
+                            .addOnFailureListener(e -> Log.e("KeyCheck", "Cannot upload public key to firebase", e));
+                } else {
+                    Log.d("KeyCheck", "Public key matching");
+                }
+
+            } catch (Exception e) {
+                Log.e("KeyCheck", "Failed to update public key", e);
+            }
+        }).addOnFailureListener(e -> Log.e("KeyCheck", "Error fetching public key from Firestore", e));
+    }
+
 }

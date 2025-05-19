@@ -1,5 +1,7 @@
 package com.example.chatty_be;
 
+import static android.util.Base64.NO_WRAP;
+
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -21,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatty_be.adapter.ChatRecyclerAdapter;
 import com.example.chatty_be.adapter.SearchUserRecyclerAdapter;
+import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.ChatMessageModel;
 import com.example.chatty_be.model.ChatRoomModel;
 import com.example.chatty_be.model.UserModel;
@@ -35,6 +38,7 @@ import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.Query;
 
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Arrays;
 
@@ -51,55 +55,36 @@ public class ChatActivity extends AppCompatActivity {
     TextView otherUsername;
     RecyclerView recyclerView;
 
-    private ChatSession chatSession;
-    private String ciphertext;
-    private String iv;
-    private String ephemeralPublicKey;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_chat);
 
+        otherUser = AndroidUtil.getuserModelFromIntent(getIntent());
+
         FriendRequestManager manager = new FriendRequestManager(this);
 
 
-        String userId= "tzHamc8cTIc5uE0wwEaJCj2cUDF3";
-        String friendPublicKeyEncoded = manager.extractFriendPublicKey(userId);
-        Log.d("FriendPublicKey", "Friend public key fetched: " + friendPublicKeyEncoded);
-
-        try {
-            byte[] rawKey = Base64.decode(friendPublicKeyEncoded, Base64.NO_WRAP);
-            PublicKey friendPublicKey = KeyUtil.decodePublicKey(rawKey);
-            chatSession = new ChatSession(friendPublicKey);
-
-            Log.d("ChatSession", "Ephemeral pub key: " +
-                    Base64.encodeToString(chatSession.getEphemeralPublicKeyEncoded(), Base64.NO_WRAP));
-        } catch (Exception e) {
-            Log.e("ChatSession", "Failed to initialize chat session", e);
-        }
 
 
+        chatRoomId = FirebaseUtil.getChatRoomId(FirebaseUtil.getCurrentUserId(), otherUser.getUserId());
 
-        otherUser = AndroidUtil.getuserModelFromIntent(getIntent());
-        chatRoomId  = FirebaseUtil.getChatRoomId(FirebaseUtil.getCurrentUserId(), otherUser.getUserId());
-
-        messageInput= findViewById(R.id.chat_message_input);
-        sendMessageButton= findViewById(R.id.message_send_btn);
+        messageInput = findViewById(R.id.chat_message_input);
+        sendMessageButton = findViewById(R.id.message_send_btn);
         backButton = findViewById(R.id.back_button_chat);
-        otherUsername =findViewById(R.id.other_username);
+        otherUsername = findViewById(R.id.other_username);
         recyclerView = findViewById(R.id.chat_recycler_view);
 
-        backButton.setOnClickListener((v)->{
+        backButton.setOnClickListener((v) -> {
             getOnBackPressedDispatcher().onBackPressed();
         });
 
         otherUsername.setText(otherUser.getUsername());
 
-        sendMessageButton.setOnClickListener((v->{
+        sendMessageButton.setOnClickListener((v -> {
             String message = messageInput.getText().toString().trim();
-            if(message.isEmpty())
+            if (message.isEmpty())
                 return;
 
             sendMessageToUser(message);
@@ -113,12 +98,19 @@ public class ChatActivity extends AppCompatActivity {
 
     }
 
-    void sendMessageToUser(String message){
+    void sendMessageToUser(String message) {
 
         chatRoomModel.setLastMessageTimestamp(Timestamp.now());
         chatRoomModel.setLastMessageSenderId(FirebaseUtil.getCurrentUserId());
         chatRoomModel.setLastMessage(message);
         FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
+
+        ChatSession chatSession = generateChatSession(new FriendRequestManager(this), otherUser.getUserId());
+
+        if(chatSession == null) {
+            Log.e("ChatSession", "Failed to generate chat session");
+            return;
+        }
 
         EncryptedMessage encrypted = MessagesUtil.encryptMessage(message, chatSession);
 
@@ -128,6 +120,7 @@ public class ChatActivity extends AppCompatActivity {
         }
 
         ChatMessageModel chatMessageModel = new ChatMessageModel(
+                message,
                 encrypted,
                 FirebaseUtil.getCurrentUserId(),
                 Timestamp.now()
@@ -137,7 +130,7 @@ public class ChatActivity extends AppCompatActivity {
                 .addOnCompleteListener(new OnCompleteListener<DocumentReference>() {
                     @Override
                     public void onComplete(@NonNull Task<DocumentReference> task) {
-                        if(task.isSuccessful()){
+                        if (task.isSuccessful()) {
                             messageInput.setText("");
                         }
                     }
@@ -145,12 +138,12 @@ public class ChatActivity extends AppCompatActivity {
 
     }
 
-    void getOrCreateChatRoomModel(){
+    void getOrCreateChatRoomModel() {
         FirebaseUtil.getChatRoomReference(chatRoomId).get().addOnCompleteListener(task -> {
-            if(task.isSuccessful()){
+            if (task.isSuccessful()) {
                 chatRoomModel = task.getResult().toObject(ChatRoomModel.class);
-                if(chatRoomModel == null ){
-                     // first time chat
+                if (chatRoomModel == null) {
+                    // first time chat
                     chatRoomModel = new ChatRoomModel(
                             chatRoomId,
                             Arrays.asList(FirebaseUtil.getCurrentUserId(), otherUser.getUserId()),
@@ -165,14 +158,14 @@ public class ChatActivity extends AppCompatActivity {
     }
 
 
-    void setupChatRecyclerView(){
+    void setupChatRecyclerView() {
         Query query = FirebaseUtil.getChatRoomMessageReference(chatRoomId)
                 .orderBy("timestamp", Query.Direction.DESCENDING);
 
         FirestoreRecyclerOptions<ChatMessageModel> options = new FirestoreRecyclerOptions.Builder<ChatMessageModel>()
                 .setQuery(query, ChatMessageModel.class).build();
 
-        adapter = new ChatRecyclerAdapter(options, getApplicationContext(), chatSession);
+        adapter = new ChatRecyclerAdapter(options, getApplicationContext());
         LinearLayoutManager manager = new LinearLayoutManager(this);
         manager.setReverseLayout(true);
         recyclerView.setLayoutManager(manager);
@@ -186,6 +179,25 @@ public class ChatActivity extends AppCompatActivity {
                 recyclerView.smoothScrollToPosition(0);
             }
         });
+    }
+
+
+    private ChatSession generateChatSession(FriendRequestManager manager, String userId) {
+        try {
+            String encodedKey = manager.extractFriendPublicKey(userId);
+            if (encodedKey == null || encodedKey.isEmpty()) {
+                Log.e("ChatSession", "Encoded key is null");
+                return null;
+            }
+
+            byte[] rawKey = Base64.decode(encodedKey, NO_WRAP);
+            PublicKey friendPublicKey = KeyUtil.decodePublicKey(rawKey);
+
+           return new ChatSession(friendPublicKey);
+        } catch (Exception e) {
+            Log.e("ChatSession", "Failed to initialize chat session", e);
+            return null;
+        }
     }
 
 

@@ -17,6 +17,8 @@ public class EncryptionUtil {
     }
 
     public static String decrypt(byte[] cipherText, SecretKey key, byte[] iv) throws Exception {
+
+
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         GCMParameterSpec spec = new GCMParameterSpec(128, iv);
         cipher.init(Cipher.DECRYPT_MODE, key, spec);
