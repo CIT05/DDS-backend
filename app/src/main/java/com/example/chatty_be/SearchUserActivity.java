@@ -44,9 +44,9 @@ public class SearchUserActivity extends AppCompatActivity {
 
         searchInput.requestFocus();
 
-        searchButton.setOnClickListener(v->{
+        searchButton.setOnClickListener(v -> {
             String searchTerm = searchInput.getText().toString();
-            if(searchTerm.isEmpty() || searchTerm.length() < 2){
+            if (searchTerm.isEmpty() || searchTerm.length() < 2) {
                 searchInput.setError("Invalid username");
                 return;
             }
@@ -56,12 +56,12 @@ public class SearchUserActivity extends AppCompatActivity {
 
     }
 
-    void setupSearchRecyclerView(String searchTerm){
+    void setupSearchRecyclerView(String searchTerm) {
 
         Query query = FirebaseUtil.allUsersCollectionReference()
                 .whereGreaterThanOrEqualTo("username", searchTerm);
 
-        FirestoreRecyclerOptions<UserModel>  options = new FirestoreRecyclerOptions.Builder<UserModel>()
+        FirestoreRecyclerOptions<UserModel> options = new FirestoreRecyclerOptions.Builder<UserModel>()
                 .setQuery(query, UserModel.class).build();
 
         adapter = new SearchUserRecyclerAdapter(options, getApplicationContext());
@@ -74,23 +74,23 @@ public class SearchUserActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
-        if(adapter != null)
+        if (adapter != null)
             adapter.startListening();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if(adapter != null)
+        if (adapter != null)
             recyclerView.setAdapter(null);
-            adapter.stopListening();
+        adapter.stopListening();
 
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        if(adapter != null)
+        if (adapter != null)
             adapter.startListening();
     }
 }
