@@ -1,6 +1,7 @@
 package com.example.chatty_be.adapter;
 
 import android.content.Context;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -12,15 +13,18 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatty_be.ChatSession;
+import com.example.chatty_be.ChatSessionStorage;
 import com.example.chatty_be.R;
 import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.ChatMessageModel;
 import com.example.chatty_be.utils.FirebaseUtil;
+import com.example.chatty_be.utils.KeyUtil;
 import com.example.chatty_be.utils.MessagesUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 
 import java.security.PrivateKey;
+import java.security.PublicKey;
 
 public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageModel, ChatRecyclerAdapter.ChatModelViewHolder> {
     Context context;
@@ -46,11 +50,30 @@ public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageMod
             String decryptedMessage = "[Encrypted]";
             if (model.getEncryptedMessage() != null) {
                 try {
-                    PrivateKey myPrivateKey = KeyManager.getPrivateKey(context);
+                    String senderId = model.getSendeerId();
 
-                    ChatSession session = ChatSession.forReceiving(myPrivateKey, model.getEncryptedMessage().getEphemeralPublicKey());
+                    ChatSession session = ChatSessionStorage.getReceiveSession(
+                            senderId,
+                            model.getEncryptedMessage().getEphemeralPublicKey(),
+                            KeyManager.getPrivateKey(context)
+                    );
+
+
+                    byte[] rawKey = Base64.decode(model.getEncryptedMessage().getEphemeralPublicKey(), Base64.NO_WRAP);
+                    PublicKey peerEphemeralKey = KeyUtil.decodePublicKey(rawKey);
+                    PrivateKey myPrivateKey = KeyManager.getPrivateKey(context);
+                    session.applyPeerEphemeralKeyIfChanged(peerEphemeralKey, myPrivateKey);
+
+                    Log.d("ReceiverLog", "Incoming message from: " + model.getSendeerId());
+
+                    Log.d("ReceiverLog", "Base64 Ephemeral: " + model.getEncryptedMessage().getEphemeralPublicKey());
+                    Log.d("ReceiverLog", "Base64 IV: " + model.getEncryptedMessage().getIv());
+                    Log.d("ReceiverLog", "Base64 Ciphertext: " + model.getEncryptedMessage().getCiphertext());
+
+                    session.applyPeerEphemeralKeyIfChanged(peerEphemeralKey, myPrivateKey);
 
                     decryptedMessage = MessagesUtil.decryptMessage(
+
                             model.getEncryptedMessage().getCiphertext(),
                             model.getEncryptedMessage().getIv(),
                             session
