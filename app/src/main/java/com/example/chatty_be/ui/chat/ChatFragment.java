@@ -72,7 +72,7 @@ public class ChatFragment extends Fragment {
     public void onStop() {
         super.onStop();
         if(adapter != null)
-        adapter.stopListening();
+            adapter.stopListening();
 
     }
 
