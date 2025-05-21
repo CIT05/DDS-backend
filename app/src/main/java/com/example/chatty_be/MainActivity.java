@@ -84,6 +84,14 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("UserFetch", "Failed to fetch users", e);
                 });
 
+        try {
+            KeyManager.initIdentityKeys(this);
+            checkAndSyncPublicKey(this);
+        } catch (Exception e) {
+            Log.e("MainActivity", "Key initialization or sync failed", e);
+
+        }
+
         checkAndSyncPublicKey(this);
 
         getFCMToken();

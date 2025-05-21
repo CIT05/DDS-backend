@@ -1,7 +1,6 @@
 package com.example.chatty_be;
 
 import android.util.Base64;
-import android.util.Log;
 
 import com.example.chatty_be.utils.ECDHUtil;
 import com.example.chatty_be.utils.HMACUtil;
@@ -13,46 +12,71 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 
 public class ChatSession {
+    private KeyPair myEphemeralKeyPair;
+    private PublicKey lastPeerEphemeralKey;
+    private byte[] sendingChainKey;
+    private byte[] receivingChainKey;
 
-    private PrivateKey ephemeralPrivateKey;
-    private PublicKey ephemeralPublicKey;
+    private boolean mustUseNewEphemeralForNextSend = false;
 
-    //private byte[] chainKey;
-    private byte[] sharedSecret;
-
-    //sending
     public ChatSession(PublicKey recipientPublicKey) throws Exception {
-        KeyPair ephemeralKeys = KeyUtil.generateEphemeralKeyPair();
-        this.ephemeralPrivateKey = ephemeralKeys.getPrivate();
-        this.ephemeralPublicKey = ephemeralKeys.getPublic();
-        this.sharedSecret = ECDHUtil.deriveSharedSecret(ephemeralPrivateKey, recipientPublicKey);
+        this.myEphemeralKeyPair = KeyUtil.generateEphemeralKeyPair();
+        this.lastPeerEphemeralKey = recipientPublicKey;
+
+        byte[] sharedSecret = ECDHUtil.deriveSharedSecret(myEphemeralKeyPair.getPrivate(), recipientPublicKey);
+
+        sendingChainKey = HMACUtil.hmacSHA256(sharedSecret, "init-send".getBytes(StandardCharsets.UTF_8));
+        receivingChainKey = HMACUtil.hmacSHA256(sharedSecret, "init-recv".getBytes(StandardCharsets.UTF_8));
     }
 
-    //receiving
-    private ChatSession(byte[] sharedSecret, PublicKey senderEphemeralPublicKey) {
-        this.sharedSecret = sharedSecret;
-        this.ephemeralPrivateKey = null;
-        this.ephemeralPublicKey = senderEphemeralPublicKey;
+    public static ChatSession forReceiving(PrivateKey myPrivateKey, String base64PeerEphemeralKey) throws Exception {
+        byte[] raw = Base64.decode(base64PeerEphemeralKey, Base64.NO_WRAP);
+        PublicKey receivedPeerKey = KeyUtil.decodePublicKey(raw);
+
+        ChatSession session = new ChatSession();
+        session.lastPeerEphemeralKey = receivedPeerKey;
+
+        byte[] sharedSecret = ECDHUtil.deriveSharedSecret(myPrivateKey, receivedPeerKey);
+
+        session.receivingChainKey = HMACUtil.hmacSHA256(sharedSecret, "init-send".getBytes(StandardCharsets.UTF_8));
+        session.sendingChainKey = HMACUtil.hmacSHA256(sharedSecret, "init-recv".getBytes(StandardCharsets.UTF_8));
+
+        session.mustUseNewEphemeralForNextSend = true;
+        return session;
     }
 
-    public static ChatSession forReceiving(PrivateKey receiverPrivateKey, String base64EphemeralSenderKey) throws Exception {
-        byte[] raw = Base64.decode(base64EphemeralSenderKey, Base64.NO_WRAP);
-        PublicKey senderEphemeralKey = KeyUtil.decodePublicKey(raw);
-        byte[] sharedSecret = ECDHUtil.deriveSharedSecret(receiverPrivateKey, senderEphemeralKey);
+    private ChatSession() {}
 
-        return new ChatSession(sharedSecret, senderEphemeralKey);
+    public byte[] getMyEphemeralPublicKeyEncoded() {
+        return KeyUtil.encodePublicKey(myEphemeralKeyPair.getPublic());
     }
 
+    public void applyPeerEphemeralKeyIfChanged(PublicKey newPeerKey, PrivateKey myPrivateKey) throws Exception {
+        if (!newPeerKey.equals(lastPeerEphemeralKey)) {
+            byte[] newSharedSecret = ECDHUtil.deriveSharedSecret(myPrivateKey, newPeerKey);
+            receivingChainKey = HMACUtil.hmacSHA256(newSharedSecret, "init-send".getBytes(StandardCharsets.UTF_8));
+            lastPeerEphemeralKey = newPeerKey;
 
-    public byte[] getEphemeralPublicKeyEncoded() {
-        return KeyUtil.encodePublicKey(ephemeralPublicKey);
+            mustUseNewEphemeralForNextSend = true;
+        }
     }
 
-    public byte[] getNextAESKey() throws Exception {
-        // chainKey = HMACUtil.hmacSHA256(chainKey, "ratchet".getBytes(StandardCharsets.UTF_8));
-        // return HMACUtil.hmacSHA256(chainKey, "message".getBytes(StandardCharsets.UTF_8));
-        return HMACUtil.hmacSHA256(sharedSecret, "aes-key".getBytes(StandardCharsets.UTF_8));
+    public void rotateMyEphemeralKeyIfNeeded(PublicKey peerKey) throws Exception {
+        if (mustUseNewEphemeralForNextSend) {
+            this.myEphemeralKeyPair = KeyUtil.generateEphemeralKeyPair();
+            byte[] sharedSecret = ECDHUtil.deriveSharedSecret(myEphemeralKeyPair.getPrivate(), peerKey);
+            sendingChainKey = HMACUtil.hmacSHA256(sharedSecret, "init-send".getBytes(StandardCharsets.UTF_8));
+            mustUseNewEphemeralForNextSend = false;
+        }
     }
 
+    public byte[] getNextSendAESKey() throws Exception {
+        sendingChainKey = HMACUtil.hmacSHA256(sendingChainKey, "ratchet".getBytes(StandardCharsets.UTF_8));
+        return HMACUtil.hmacSHA256(sendingChainKey, "message".getBytes(StandardCharsets.UTF_8));
+    }
 
+    public byte[] getNextReceiveAESKey() throws Exception {
+        receivingChainKey = HMACUtil.hmacSHA256(receivingChainKey, "ratchet".getBytes(StandardCharsets.UTF_8));
+        return HMACUtil.hmacSHA256(receivingChainKey, "message".getBytes(StandardCharsets.UTF_8));
+    }
 }
