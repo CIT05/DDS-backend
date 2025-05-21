@@ -1,9 +1,12 @@
 package com.example.chatty_be.model;
 
+import com.example.chatty_be.EncryptedMessage;
 import com.google.firebase.Timestamp;
 
 public class ChatMessageModel {
     private String message;
+
+    private EncryptedMessage encryptedMessage;
     private String sendeerId;
     private Timestamp timestamp;
 
@@ -14,6 +17,27 @@ public class ChatMessageModel {
         this.message = message;
         this.sendeerId = sendeerId;
         this.timestamp = timestamp;
+    }
+
+    public ChatMessageModel(EncryptedMessage encryptedMessage, String sendeerId, Timestamp timestamp) {
+        this.encryptedMessage = encryptedMessage;
+        this.sendeerId = sendeerId;
+        this.timestamp = timestamp;
+    }
+
+    public ChatMessageModel(String message, EncryptedMessage encryptedMessage, String sendeerId, Timestamp timestamp) {
+        this.message = message;
+        this.encryptedMessage = encryptedMessage;
+        this.sendeerId = sendeerId;
+        this.timestamp = timestamp;
+    }
+
+    public EncryptedMessage getEncryptedMessage() {
+        return encryptedMessage;
+    }
+
+    public void setEncryptedMessage(EncryptedMessage encryptedMessage) {
+        this.encryptedMessage = encryptedMessage;
     }
 
     public String getMessage() {
