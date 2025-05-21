@@ -5,6 +5,7 @@
         <item name="colorPrimary">@color/primary</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowBackground">@color/offWhite</item>
+        <item name="android:textColorHighlight">@color/secondary</item>
     </style>
 
     <style name="Theme.Chattybe" parent="Base.Theme.Chattybe" />

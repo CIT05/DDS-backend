@@ -37,8 +37,6 @@ public class ChatFragment extends Fragment {
         binding = FragmentChatBinding.inflate(inflater, container, false);
         View root = binding.getRoot();
 
-        final TextView textView = binding.textChat;
-        galleryViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
         recyclerView = root.findViewById(R.id.recycler_view);
 
         setupRecyclerView();

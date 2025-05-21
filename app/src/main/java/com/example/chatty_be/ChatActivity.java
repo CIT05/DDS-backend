@@ -3,9 +3,6 @@ package com.example.chatty_be;
 import static android.util.Base64.NO_WRAP;
 
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.os.Message;
 import android.util.Base64;
 import android.util.Log;
 import android.widget.EditText;
@@ -13,17 +10,11 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.chatty_be.adapter.ChatRecyclerAdapter;
-import com.example.chatty_be.adapter.SearchUserRecyclerAdapter;
-import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.ChatMessageModel;
 import com.example.chatty_be.model.ChatRoomModel;
 import com.example.chatty_be.model.UserModel;
@@ -32,11 +23,7 @@ import com.example.chatty_be.utils.FirebaseUtil;
 import com.example.chatty_be.utils.KeyUtil;
 import com.example.chatty_be.utils.MessagesUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.DocumentReference;
-import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.Query;
 
 import java.security.PrivateKey;
