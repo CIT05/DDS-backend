@@ -13,8 +13,8 @@ public class ChatSessionStorage {
 
     private static final Map<String, SessionPair> sessions = new HashMap<>();
 
-    public static ChatSession getSendSession(String peerId, FriendRequestManager manager) throws Exception {
-        SessionPair pair = sessions.get(peerId);
+    public static ChatSession getSendSession(String chatRoomId, String peerId, FriendRequestManager manager) throws Exception {
+        SessionPair pair = sessions.get(chatRoomId);
 
         if (pair != null && pair.sendSession != null) return pair.sendSession;
 

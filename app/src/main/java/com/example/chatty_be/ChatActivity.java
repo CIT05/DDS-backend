@@ -36,6 +36,7 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.DocumentReference;
+import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.Query;
 
 import java.security.PrivateKey;
@@ -109,7 +110,7 @@ public class ChatActivity extends AppCompatActivity {
         ChatSession chatSession;
         try {
             FriendRequestManager manager = new FriendRequestManager(this);
-            chatSession = ChatSessionStorage.getSendSession(otherUser.getUserId(), manager);
+            chatSession = ChatSessionStorage.getSendSession(chatRoomModel.getChatRoomId(), otherUser.getUserId(), manager);
 
             if (chatSession == null) {
                 Log.e("ChatSession", "Send session is null! Aborting message send.");
