@@ -63,7 +63,6 @@ public class SearchUserRecyclerAdapter extends FirestoreRecyclerAdapter<UserMode
             phoneNumber = itemView.findViewById(R.id.phone_text);
             profilePic = itemView.findViewById(R.id.profile_pic_image_view);
 
-
         }
     }
 }
