@@ -57,6 +57,7 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation ("com.firebaseui:firebase-ui-firestore:9.0.0")
     implementation ("com.google.firebase:firebase-messaging")
+    implementation ("com.google.android.gms:play-services-location:21.0.1")
 
 
 }

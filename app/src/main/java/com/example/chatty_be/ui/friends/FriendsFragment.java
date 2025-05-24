@@ -4,7 +4,7 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
+import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -18,6 +18,7 @@ public class FriendsFragment extends Fragment {
 
     private FragmentFriendsBinding binding;
 
+    BottomNavigationView bottomNav;
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -31,7 +32,8 @@ public class FriendsFragment extends Fragment {
                 .replace(R.id.friends_content, new FriendsNearbyFragment())
                 .commit();
 
-        BottomNavigationView bottomNav = binding.bottomNavigation;
+         bottomNav = binding.bottomNavigation;
+
 
         bottomNav.setOnItemSelectedListener(item -> {
             Fragment selected = null;
@@ -55,9 +57,16 @@ public class FriendsFragment extends Fragment {
             return true;
         });
 
-       // final TextView textView = binding.textFriends;
-//        slideshowViewModel.getText().observe(getViewLifecycleOwner(), textView::setText);
         return root;
+    }
+
+
+    public void showRequestFriendFragment() {
+        getChildFragmentManager().beginTransaction()
+                .replace(R.id.friends_content, new FriendsRequestFragment())
+                .commit();
+
+        bottomNav.setSelectedItemId(R.id.menu_friends_requests);
     }
 
     @Override
