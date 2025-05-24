@@ -8,6 +8,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,33 +31,38 @@ import com.example.chatty_be.LoginUsernameActivity;
 import com.example.chatty_be.MainActivity;
 import com.example.chatty_be.R;
 import com.example.chatty_be.adapter.SearchUserRecyclerAdapter;
+import com.example.chatty_be.adapter.UserLocationRecyclerAdapter;
+import com.example.chatty_be.model.UserLocationModel;
 import com.example.chatty_be.model.UserModel;
 import com.example.chatty_be.utils.FirebaseUtil;
+import com.example.chatty_be.utils.LocationUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
 import com.google.firebase.firestore.auth.User;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 public class FriendsNearbyFragment extends Fragment {
 
     ProgressBar progressBar;
-
     LinearLayout friendsNearbyContentSuccess;
-
     LinearLayout friendsNearbyContentError;
-
     TextView loadingText;
 
+    TextView errorText;
     Button requestFriendsButton;
     FusedLocationProviderClient fusedLocationClient;
-
     LinearLayout locationPermissionLayout;
-
-    //PLACEHOLDER
+    UserLocationModel userLocationModel;
     RecyclerView recyclerView;
-    SearchUserRecyclerAdapter adapter;
+    UserLocationRecyclerAdapter adapter;
 
     private final ActivityResultLauncher<String> coarsePermissionLauncher =
             registerForActivityResult(
@@ -64,9 +70,6 @@ public class FriendsNearbyFragment extends Fragment {
                     granted -> {
                         simulateLoading(granted);
                     });
-
-    public FriendsNearbyFragment() {
-    }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -82,58 +85,45 @@ public class FriendsNearbyFragment extends Fragment {
                              @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_friends_nearby, container, false);
 
-        progressBar = view.findViewById(R.id.progressBar);
-        friendsNearbyContentSuccess = view.findViewById(R.id.friendsNearbyContentSuccess);
-        friendsNearbyContentError = view.findViewById(R.id.friendsNearbyContentError);
-        loadingText = view.findViewById(R.id.friendsNearbyLoadingText);
-        requestFriendsButton = view.findViewById(R.id.requestFriendsButton);
-        locationPermissionLayout = view.findViewById(R.id.locationPermissionDenied);
+        initializeViews(view);
+        setupRequestFriendsButton();
 
-        requestFriendsButton.setOnClickListener(v -> {
-            Fragment parent = getParentFragment();
-            if (parent instanceof FriendsFragment) {
-                ((FriendsFragment) parent).showRequestFriendFragment();
-            }
-        });
-
-        progressBar.setVisibility(View.GONE);
-        loadingText.setVisibility(View.GONE);
-
-        boolean hasPermission = ContextCompat.checkSelfPermission(requireContext(),
-                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
-
-
-        if(!hasPermission) {
+        if (hasLocationPermission()) {
             coarsePermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION);
-        }else {
+        } else {
             simulateLoading(true);
         }
 
         return view;
     }
 
-    @SuppressLint("MissingPermission")
-    private void getLastLocation() {
-        fusedLocationClient.getLastLocation()
-                .addOnSuccessListener(location -> {
-                    if (location != null) {
-                        double latitude = location.getLatitude();
-                        double longitude = location.getLongitude();
-
-                        Toast.makeText(getContext(), "Location: " + latitude + ", " + longitude, Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getContext(), "Location not found", Toast.LENGTH_SHORT).show();
-                    }
-                });
+    private void initializeViews(View view) {
+        progressBar = view.findViewById(R.id.progressBar);
+        friendsNearbyContentSuccess = view.findViewById(R.id.friendsNearbyContentSuccess);
+        friendsNearbyContentError = view.findViewById(R.id.friendsNearbyContentError);
+        loadingText = view.findViewById(R.id.friendsNearbyLoadingText);
+        errorText = view.findViewById(R.id.friendsNearbyErrorText);
+        requestFriendsButton = view.findViewById(R.id.requestFriendsButton);
+        locationPermissionLayout = view.findViewById(R.id.locationPermissionDenied);
     }
 
+    private void setupRequestFriendsButton() {
+        requestFriendsButton.setOnClickListener(v -> {
+            Fragment parent = getParentFragment();
+            if (parent instanceof FriendsFragment) {
+                ((FriendsFragment) parent).showRequestFriendFragment();
+            }
+        });
+    }
+
+    private boolean hasLocationPermission() {
+        return ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
 
     private void simulateLoading(boolean isPermissionGranted) {
-        progressBar.setVisibility(View.GONE);
-        loadingText.setVisibility(View.GONE);
-        friendsNearbyContentSuccess.setVisibility(View.GONE);
-        friendsNearbyContentError.setVisibility(View.GONE);
-        locationPermissionLayout.setVisibility(View.GONE);
+
+        resetViews();
 
         if (!isPermissionGranted) {
             locationPermissionLayout.setVisibility(View.VISIBLE);
@@ -141,31 +131,145 @@ public class FriendsNearbyFragment extends Fragment {
         }
 
         getLastLocation();
+    }
+
+    private void resetViews() {
+        progressBar.setVisibility(View.GONE);
+        loadingText.setVisibility(View.GONE);
+        friendsNearbyContentSuccess.setVisibility(View.GONE);
+        friendsNearbyContentError.setVisibility(View.GONE);
+        locationPermissionLayout.setVisibility(View.GONE);
+        requestFriendsButton.setVisibility(View.GONE);
+    }
+
+    private void displayError(String message) {
+        progressBar.setVisibility(View.GONE);
+        loadingText.setVisibility(View.GONE);
+        friendsNearbyContentError.setVisibility(View.VISIBLE);
+        errorText.setText(message);
+    }
+
+    private void displayNearbyUsersDetails(Map<String, UserLocationModel> userLocations) {
+        if (userLocations.isEmpty()) {
+            displayError("No nearby users found.");
+            requestFriendsButton.setVisibility(View.VISIBLE);
+            return;
+        }
+
+
+        List<String> userIds = List.copyOf(userLocations.keySet());
+
+
+        adapter = new UserLocationRecyclerAdapter(new ArrayList<>(), requireContext());
+        recyclerView.setAdapter(adapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+
+        for (int i = 0; i < userIds.size(); i += 10) {
+            int end = Math.min(i + 10, userIds.size());
+            List<String> chunk = userIds.subList(i, end);
+
+            FirebaseUtil.allUsersCollectionReference()
+                    .whereIn("userId", chunk)
+                    .get()
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            List<UserModel> users = task.getResult().toObjects(UserModel.class);
+
+                            adapter.updateUserList(users);
+                            friendsNearbyContentSuccess.setVisibility(View.VISIBLE);
+                        } else {
+                            Log.w("FriendsNearbyFragment", "Error getting users", task.getException());
+                            displayError("Failed to fetch user details. Please try again later.");
+                        }
+                    });
+        }
+
+    }
+
+    private void fetchNearbyUsers(double latitude, double longitude, double radius, String currentUserId, Timestamp currentTimestamp) {
+        LocationUtil.MinMaxCoordinates minMaxCoordinates = LocationUtil.getMinMaxCoordinatesBox(latitude, longitude, radius);
+
+        FirebaseUtil.allUserLocationReference().
+                whereNotEqualTo("userId", currentUserId)
+                .whereGreaterThan("expireAt", currentTimestamp)
+                .whereGreaterThanOrEqualTo("latitude", minMaxCoordinates.minLat)
+                .whereLessThanOrEqualTo("latitude", minMaxCoordinates.maxLat)
+                .whereGreaterThanOrEqualTo("longitude", minMaxCoordinates.minLon)
+                .whereLessThanOrEqualTo("longitude", minMaxCoordinates.maxLat)
+                .get()
+                .addOnCompleteListener(task1 -> {
+                    if (task1.isSuccessful()) {
+
+                        Map<String, UserLocationModel> userLocations = new HashMap<String, UserLocationModel>();
+
+
+                        for (QueryDocumentSnapshot document : task1.getResult()) {
+                            UserLocationModel userLocation = document.toObject(UserLocationModel.class);
+
+                            boolean isUserInsideTheCircle = LocationUtil.isCoordinatesInCircle(
+                                    userLocation.getLatitude(),
+                                    userLocation.getLongitude(),
+                                    latitude,
+                                    longitude,
+                                    radius);
+
+                            if (isUserInsideTheCircle) {
+                                userLocations.put(userLocation.getUserId(), userLocation);
+                            }
+                        }
+
+                        displayNearbyUsersDetails(userLocations);
+
+                        if (task1.getResult().isEmpty()) {
+                            displayError("No nearby users found.");
+                            requestFriendsButton.setVisibility(View.VISIBLE);
+                        } else {
+                            friendsNearbyContentSuccess.setVisibility(View.VISIBLE);
+                        }
+                    } else {
+                        Log.w("FriendsNearbyFragment", "Error getting user locations", task1.getException());
+                        displayError("Failed to fetch nearby users. Please try again later.");
+                    }
+                });
+
+    }
+
+    @SuppressLint("MissingPermission")
+    private void getLastLocation() {
         progressBar.setVisibility(View.VISIBLE);
         loadingText.setVisibility(View.VISIBLE);
 
+        fusedLocationClient.getLastLocation()
+                .addOnSuccessListener(location -> {
+                    if (location != null) {
+                        double latitude = LocationUtil.roundLocation(location.getLatitude(), 100);
+                        double longitude = LocationUtil.roundLocation(location.getLongitude(), 100);
+                        double radius = 5000;
 
-        FirebaseUtil.allUsersCollectionReference().get().addOnCompleteListener(task -> {
-            progressBar.setVisibility(View.GONE);
-            loadingText.setVisibility(View.GONE);
-            if(task.isSuccessful()){
-                Query query = FirebaseUtil.allUsersCollectionReference()
-                        .whereGreaterThanOrEqualTo("username", "");
+                        Timestamp expireAt = new Timestamp(Timestamp.now().getSeconds() + 30 * 60, 0);
 
-                FirestoreRecyclerOptions<UserModel> options = new FirestoreRecyclerOptions.Builder<UserModel>()
-                        .setQuery(query, UserModel.class).build();
+                        String currentUserId = FirebaseUtil.getCurrentUserId();
+                        Timestamp currentTimestamp = Timestamp.now();
 
-                recyclerView = getView().findViewById(R.id.friendsNearbyListContainer);
+                        userLocationModel = new UserLocationModel(
+                                latitude, longitude, currentUserId, expireAt);
 
-                adapter = new SearchUserRecyclerAdapter(options, getContext());
-                recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-                recyclerView.setAdapter(adapter);
-                adapter.startListening();
-                friendsNearbyContentSuccess.setVisibility(View.VISIBLE);
-            }
-            else {
-                friendsNearbyContentError.setVisibility(View.VISIBLE);
-            }
-        });
+                        FirebaseUtil.getUserLocationReference(FirebaseUtil.getCurrentUserId()).set(userLocationModel).addOnCompleteListener(task -> {
+                            if (task.isSuccessful()) {
+                                fetchNearbyUsers(latitude, longitude, radius, currentUserId, currentTimestamp);
+                            }
+                            else {
+                                Log.w("FriendsNearbyFragment", "Failed to set user location", task.getException());
+                                displayError("Failed to set your location. Please try again later.");
+                            }
+                        });
+                    } else {
+                        Log.w("FriendsNearbyFragment", "No location found");
+                        displayError("Failed to get your location. Please ensure location services are enabled.");
+                    }
+                });
     }
 }
+
+
+

@@ -28,6 +28,14 @@ public class FirebaseUtil {
         return  FirebaseFirestore.getInstance().collection("users");
     }
 
+    public static CollectionReference allUserLocationReference(){
+        return FirebaseFirestore.getInstance().collection("user_locations");
+    }
+
+    public static DocumentReference getUserLocationReference(String userId){
+        return FirebaseFirestore.getInstance().collection("user_locations").document(userId);
+    }
+
     public  static  DocumentReference getChatRoomReference(String chatRoomId){
         return  FirebaseFirestore.getInstance().collection("chatrooms").document(chatRoomId);
     }
