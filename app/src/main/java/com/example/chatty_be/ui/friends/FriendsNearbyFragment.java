@@ -2,12 +2,8 @@ package com.example.chatty_be.ui.friends;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -16,33 +12,31 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.chatty_be.LoginUsernameActivity;
-import com.example.chatty_be.MainActivity;
 import com.example.chatty_be.R;
-import com.example.chatty_be.adapter.SearchUserRecyclerAdapter;
 import com.example.chatty_be.adapter.UserLocationRecyclerAdapter;
 import com.example.chatty_be.model.UserLocationModel;
 import com.example.chatty_be.model.UserModel;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.example.chatty_be.utils.LocationUtil;
-import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.firebase.Timestamp;
-import com.google.firebase.firestore.Query;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-import com.google.firebase.firestore.auth.User;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -68,7 +62,7 @@ public class FriendsNearbyFragment extends Fragment {
             registerForActivityResult(
                     new ActivityResultContracts.RequestPermission(),
                     granted -> {
-                        simulateLoading(granted);
+                        handleLocationPermissionResult(granted);
                     });
 
     @Override
@@ -86,12 +80,14 @@ public class FriendsNearbyFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_friends_nearby, container, false);
 
         initializeViews(view);
+        resetViews();
         setupRequestFriendsButton();
 
-        if (hasLocationPermission()) {
+
+        if (!hasLocationPermission()) {
             coarsePermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION);
         } else {
-            simulateLoading(true);
+            handleLocationPermissionResult(true);
         }
 
         return view;
@@ -121,7 +117,7 @@ public class FriendsNearbyFragment extends Fragment {
                 Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
     }
 
-    private void simulateLoading(boolean isPermissionGranted) {
+    private void handleLocationPermissionResult(boolean isPermissionGranted) {
 
         resetViews();
 
@@ -256,20 +252,47 @@ public class FriendsNearbyFragment extends Fragment {
 
                         FirebaseUtil.getUserLocationReference(FirebaseUtil.getCurrentUserId()).set(userLocationModel).addOnCompleteListener(task -> {
                             if (task.isSuccessful()) {
+                                Log.d("FriendsNearbyFragment", "User location set successfully");
                                 fetchNearbyUsers(latitude, longitude, radius, currentUserId, currentTimestamp);
-                            }
-                            else {
-                                Log.w("FriendsNearbyFragment", "Failed to set user location", task.getException());
-                                displayError("Failed to set your location. Please try again later.");
+                            } else {
+                                requestFreshLocation();
                             }
                         });
                     } else {
                         Log.w("FriendsNearbyFragment", "No location found");
                         displayError("Failed to get your location. Please ensure location services are enabled.");
+                        requestFreshLocation();
                     }
                 });
     }
+
+    private void requestFreshLocation() {
+        Log.d("FriendsNearbyFragment", "Requesting fresh location");
+        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY)
+                .setIntervalMillis(1000)
+                .setMaxUpdates(1)
+                .build();
+
+        LocationCallback locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                if (locationResult != null && !locationResult.getLocations().isEmpty()) {
+                    System.out.println("Location found: " + locationResult.getLastLocation());
+                    getLastLocation();
+
+                } else {
+                    Log.w("FriendsNearbyFragment", "No fresh location found");
+                    displayError("Failed to get your location. Please ensure location services are enabled.");
+                }
+            }
+        };
+        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+
+            Log.w("FriendsNearbyFragment", "Location permissions not granted");
+            displayError("Location permissions are not granted. Please enable them in settings.");
+            return;
+        }
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
+
+    }
 }
-
-
-
