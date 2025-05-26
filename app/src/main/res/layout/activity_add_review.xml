@@ -145,6 +145,15 @@
                 android:textColor="#757575"
                 android:textSize="14sp" />
 
+            <Button
+                android:id="@+id/btnPost"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Post Review"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="40dp"/>
+
+
         </LinearLayout>
 
 
