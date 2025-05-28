@@ -32,10 +32,12 @@ import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.GeoPoint;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
 import java.util.Collections;
+import java.util.Locale;
 import java.util.UUID;
 
 import kotlin.Unit;
@@ -46,7 +48,6 @@ public class AddReviewActivity extends AppCompatActivity {
     ImageButton backButton;
     ActivityResultLauncher<Intent> imagePickLauncher;
     Uri selectedImageUri;
-//    FrameLayout addImageBox;
     Button postButton;
     ImageView reviewImage;
 
@@ -55,6 +56,9 @@ public class AddReviewActivity extends AppCompatActivity {
     EditText nameField;
 
     Spinner locationType;
+
+    private ActivityResultLauncher<Intent> pickLocationLauncher;
+    @Nullable private GeoPoint selectedGeo;
 
 
 
@@ -98,13 +102,40 @@ public class AddReviewActivity extends AppCompatActivity {
                     });
         });
 
+        pickLocationLauncher =
+                registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+                        result -> {
+                            if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                                double lat = result.getData().getDoubleExtra("lat", 0);
+                                double lng = result.getData().getDoubleExtra("lng", 0);
+                                selectedGeo = new GeoPoint(lat, lng);
+                                Toast.makeText(this,
+                                        String.format(Locale.US,
+                                                "Location: %.5f, %.5f", lat, lng),
+                                        Toast.LENGTH_SHORT).show();
+                            }
+                        });
+
+        findViewById(R.id.btnPickLocation).setOnClickListener(v -> {
+            Intent i = new Intent(this, MapPickerActivity.class);
+            pickLocationLauncher.launch(i);
+        });
+
+
         postButton.setOnClickListener(v -> uploadReview());
 
     }
 
     private void uploadReview() {
+        if (!validateInput()) return;
 
-        // 1. basic validation ---------------------------------------------------
+        if (selectedGeo == null) {           // guard – user MUST pick a point
+            Toast.makeText(this,
+                    "Please pick a location first",
+                    Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         String comment = commentField.getText().toString().trim();
         String locName = nameField.getText().toString().trim();
 
@@ -113,13 +144,11 @@ public class AddReviewActivity extends AppCompatActivity {
             return;
         }
 
-        // 2. Firestore: get a new doc first so we can reuse its ID --------------
         FirebaseFirestore db = FirebaseFirestore.getInstance();
         DocumentReference doc = db.collection("reviews").document();   // auto-ID
         String reviewId = doc.getId();
         String userUid  = FirebaseUtil.getCurrentUserId();
 
-        // 3. build the ReviewModel ---------------------------------------------
         ReviewModel review = new ReviewModel(
                 reviewId,
                 userUid,
@@ -127,10 +156,11 @@ public class AddReviewActivity extends AppCompatActivity {
                 locationType.getSelectedItem().toString(),
                 comment,
                 System.currentTimeMillis(),
-                null         // imageUrls will be added after upload
+                null,      // imageUrls will be added after upload
+                selectedGeo
         );
 
-        // 4. If there’s a picture, upload it first ------------------------------
+//        If there’s a picture, upload it first ------------------------------
         if (selectedImageUri != null) {
 
             StorageReference picRef = FirebaseStorage.getInstance()
@@ -150,7 +180,7 @@ public class AddReviewActivity extends AppCompatActivity {
                     })
                     .addOnFailureListener(e -> toast(e.getMessage()));
 
-            // 5. No picture – just write the doc ------------------------------------
+            // No picture – just write the doc ------------------------------------
         } else {
             doc.set(review)
                     .addOnSuccessListener(v -> finishOk())
@@ -169,4 +199,30 @@ public class AddReviewActivity extends AppCompatActivity {
                 msg == null ? "Something went wrong" : msg,
                 Toast.LENGTH_SHORT).show();
     }
+
+    private boolean validateInput() {
+        String locName  = nameField.getText().toString().trim();
+        String comment  = commentField.getText().toString().trim();
+        String type     = locationType.getSelectedItem().toString();
+
+        if (locName.isEmpty()) {
+            nameField.setError("Location name required");
+            nameField.requestFocus();
+            return false;
+        }
+
+        if (comment.isEmpty()) {
+            commentField.setError("Please add a description");
+            commentField.requestFocus();
+            return false;
+        }
+
+        if (type.equals("Select type")) {          // use your real placeholder text
+            Toast.makeText(this, "Choose a location type", Toast.LENGTH_SHORT).show();
+            return false;
+        }
+
+        return true;
+    }
+
 }

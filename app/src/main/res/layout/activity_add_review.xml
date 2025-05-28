@@ -1,6 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-
-
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
@@ -10,13 +8,12 @@
     android:fitsSystemWindows="true"
     tools:context=".AddReviewActivity">
 
+    <!-- ─────────── Toolbar ─────────── -->
     <androidx.appcompat.widget.Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
-        app:layout_anchor="@+id/addReview"
-        app:layout_anchorGravity="center"
         app:popupTheme="@style/Theme.Chattybe.PopupOverlay">
 
         <FrameLayout
@@ -46,6 +43,7 @@
         </FrameLayout>
     </androidx.appcompat.widget.Toolbar>
 
+    <!-- ─────────── Content ─────────── -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -67,17 +65,20 @@
                 android:text="Name Location"
                 android:textSize="20sp" />
 
-            <EditText
-                android:id="@+id/etNameLocation"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/edit_text_rounded_corner"
-                android:elevation="5dp"
                 android:hint="Add the name of the location"
-                android:inputType="textCapWords"
-                android:padding="10dp" />
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etNameLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textCapWords" />
+            </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Description -->
             <TextView
@@ -89,21 +90,25 @@
                 android:text="Description"
                 android:textSize="20sp" />
 
-            <EditText
-                android:id="@+id/etDescription"
+            <com.google.android.material.textfield.TextInputLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_margin="10dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/edit_text_rounded_corner"
-                android:elevation="5dp"
-                android:gravity="start|top"
                 android:hint="What did you like about this location?"
-                android:inputType="textMultiLine"
-                android:maxLines="6"
-                android:minLines="3"
-                android:padding="10dp" />
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etDescription"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="start|top"
+                    android:inputType="textMultiLine"
+                    android:maxLines="6"
+                    android:minLines="3" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Type of location (Spinner keeps the same) -->
             <TextView
                 android:id="@+id/tvLocationTypeLabel"
                 android:layout_width="wrap_content"
@@ -124,6 +129,7 @@
                 android:entries="@array/location_types"
                 android:padding="10dp" />
 
+            <!-- Image picker & Post button -->
             <ImageView
                 android:id="@+id/btnAddImage"
                 android:layout_width="350dp"
@@ -132,8 +138,7 @@
                 android:layout_marginTop="16dp"
                 android:background="@drawable/grey_box"
                 android:foreground="?attr/selectableItemBackgroundBorderless"
-                android:scaleType="centerCrop"
-                />
+                android:scaleType="centerCrop" />
 
             <TextView
                 android:id="@+id/tvAddImage"
@@ -146,17 +151,19 @@
                 android:textSize="14sp" />
 
             <Button
+                android:id="@+id/btnPickLocation"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Pick location on map" />
+
+            <Button
                 android:id="@+id/btnPost"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Post Review"
                 android:layout_marginTop="10dp"
-                android:layout_marginBottom="40dp"/>
-
-
+                android:layout_marginBottom="40dp"
+                android:text="Post Review" />
         </LinearLayout>
-
-
     </ScrollView>
-
 </RelativeLayout>
