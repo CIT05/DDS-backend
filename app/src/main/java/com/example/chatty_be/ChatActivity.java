@@ -26,7 +26,6 @@ import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 import com.google.firebase.Timestamp;
 import com.google.firebase.firestore.Query;
 
-import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.util.Arrays;
 
@@ -43,8 +42,6 @@ public class ChatActivity extends AppCompatActivity {
     TextView otherUsername;
     RecyclerView recyclerView;
 
-    ChatSession chatSession;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -54,9 +51,6 @@ public class ChatActivity extends AppCompatActivity {
         otherUser = AndroidUtil.getuserModelFromIntent(getIntent());
 
         FriendRequestManager manager = new FriendRequestManager(this);
-
-
-
 
         chatRoomId = FirebaseUtil.getChatRoomId(FirebaseUtil.getCurrentUserId(), otherUser.getUserId());
 
@@ -80,6 +74,9 @@ public class ChatActivity extends AppCompatActivity {
             sendMessageToUser(message);
 
         }));
+
+        FriendRequestManager friendRequestManager = new FriendRequestManager(this);
+        friendRequestManager.checkFriendPublicKeyAndFetchItIfNeeded(otherUser.getUserId());
 
         getOrCreateChatRoomModel();
 

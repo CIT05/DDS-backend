@@ -263,6 +263,32 @@ public class FriendRequestManager {
                 });
     }
 
+
+    public void checkFriendPublicKeyAndFetchItIfNeeded(String friendId){
+        EncryptedStorePreference encryptedStorePreference = new EncryptedStorePreference(context);
+        String friendPublicKey = encryptedStorePreference.get(friendId);
+
+        if (friendPublicKey == null || friendPublicKey.isEmpty()) {
+            FirebaseUtil.getUserByUserId(friendId).get()
+                    .addOnSuccessListener(documentSnapshot -> {
+                        if (documentSnapshot.exists()) {
+                            String publicKey = documentSnapshot.getString("publicKey");
+                            if (publicKey != null && !publicKey.isEmpty()) {
+                                encryptedStorePreference.put(friendId, publicKey);
+                            } else {
+                                Log.w("FriendRequestManager", "No public key found for friend: " + friendId);
+                            }
+                        } else {
+                            Log.w("FriendRequestManager", "No user document found for friend: " + friendId);
+                        }
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("FriendRequestManager", "Failed to fetch public key for friend: " + friendId + " - " + e.getMessage());
+                    });
+        } else {
+            Log.d("FriendRequestManager", "Public key already exists for friend: " + friendId);
+        }
+    }
     public String extractFriendPublicKey(String userId) {
         EncryptedStorePreference encryptedStorePreference = new EncryptedStorePreference(context);
         String friendPublicKey = encryptedStorePreference.get(userId);
