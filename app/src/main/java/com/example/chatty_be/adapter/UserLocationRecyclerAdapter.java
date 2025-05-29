@@ -34,6 +34,11 @@ public class UserLocationRecyclerAdapter extends RecyclerView.Adapter<UserLocati
         notifyDataSetChanged();
     }
 
+    public void addUsers(List<UserModel> newUserList) {
+        this.userList.addAll(newUserList);
+        notifyDataSetChanged();
+    }
+
     @Override
     public void onBindViewHolder(@NonNull UserModelHolder holder, int position) {
         UserModel model = userList.get(position);
@@ -61,20 +66,16 @@ public class UserLocationRecyclerAdapter extends RecyclerView.Adapter<UserLocati
 
     @Override
     public int getItemCount() {
-        return 0;
+        return userList.size();
     }
 
     static class UserModelHolder extends RecyclerView.ViewHolder{
         TextView usernameText;
         TextView phoneNumber;
-        ImageView profilePic;
-
         public UserModelHolder(@NonNull View itemView) {
             super(itemView);
-            usernameText = itemView.findViewById(R.id.username_text);
-            phoneNumber = itemView.findViewById(R.id.phone_text);
-            profilePic = itemView.findViewById(R.id.profile_pic_image_view);
-
+            usernameText = itemView.findViewById(R.id.user_username_text);
+            phoneNumber = itemView.findViewById(R.id.user_phone_text);
         }
     }
 
