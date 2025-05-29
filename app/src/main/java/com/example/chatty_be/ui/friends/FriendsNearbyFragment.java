@@ -255,44 +255,19 @@ public class FriendsNearbyFragment extends Fragment {
         progressBar.setVisibility(View.VISIBLE);
         loadingText.setVisibility(View.VISIBLE);
 
-        fusedLocationClient.getLastLocation()
+        fusedLocationClient.getCurrentLocation(
+                                Priority.PRIORITY_HIGH_ACCURACY,
+                                null
+                                )
                 .addOnSuccessListener(location -> {
                     if (location != null) {
                         saveUserLocation(location);
                     } else {
                         Log.w("FriendsNearbyFragment", "No location found");
                         displayError("Failed to get your location. Please ensure location services are enabled.");
-                        requestFreshLocation();
+//
                     }
                 });
-    }
-
-    private void requestFreshLocation() {
-        Log.d("FriendsNearbyFragment", "Requesting fresh location");
-        LocationRequest locationRequest = new LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY)
-                .setIntervalMillis(1000)
-                .setMaxUpdates(1)
-                .build();
-
-        LocationCallback locationCallback = new LocationCallback() {
-            @Override
-            public void onLocationResult(@NonNull LocationResult locationResult) {
-                if (locationResult != null && !locationResult.getLocations().isEmpty()) {
-                    saveUserLocation(locationResult.getLastLocation());
-                } else {
-                    Log.w("FriendsNearbyFragment", "No fresh location found");
-                    displayError("Failed to get your location. Please ensure location services are enabled.");
-                }
-            }
-        };
-        if (ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
-            Log.w("FriendsNearbyFragment", "Location permissions not granted");
-            displayError("Location permissions are not granted. Please enable them in settings.");
-            return;
-        }
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
-
     }
 
     private void saveUserLocation(Location location) {
@@ -316,7 +291,7 @@ public class FriendsNearbyFragment extends Fragment {
                 Log.d("FriendsNearbyFragment", "User location set successfully");
                 fetchNearbyUsers(latitude, longitude, radius, currentUserId, currentTimestamp);
             } else {
-                requestFreshLocation();
+                Log.w("FriendsNearbyFragment", "Can not save user location");
             }
         });
     }
