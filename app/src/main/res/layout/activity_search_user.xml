@@ -13,8 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="?attr/colorPrimary"
-        app:layout_anchor="@+id/search"
-        app:layout_anchorGravity="center"
+        android:layout_alignParentTop="true"
         app:popupTheme="@style/Theme.Chattybe.PopupOverlay">
 
         <FrameLayout

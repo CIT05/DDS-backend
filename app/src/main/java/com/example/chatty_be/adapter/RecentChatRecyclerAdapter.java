@@ -15,14 +15,10 @@ import com.example.chatty_be.ChatActivity;
 import com.example.chatty_be.R;
 import com.example.chatty_be.model.ChatRoomModel;
 import com.example.chatty_be.model.UserModel;
-import com.example.chatty_be.ui.chat.ChatFragment;
 import com.example.chatty_be.utils.AndroidUtil;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.firestore.DocumentSnapshot;
 
 public class RecentChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatRoomModel, RecentChatRecyclerAdapter.ChatRoomModelViewHolder> {
     Context context;

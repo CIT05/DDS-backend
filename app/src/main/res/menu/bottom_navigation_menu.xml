@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
-        android:id="@+id/menu_my_pins"
-        android:icon="@drawable/red_marker"
-        android:title="My pins" />
+        android:id="@+id/menu_friends_nearby"
+        android:icon="@drawable/group"
+        android:title="Friends Nearby" />
 
     <item
-        android:id="@+id/menu_friend_pins"
-        android:icon="@drawable/red_marker"
-        android:title="Friend's pins" />
+        android:id="@+id/menu_friends_requests"
+        android:icon="@drawable/person_add"
+        android:title="Friend Requests" />
 </menu>

@@ -14,7 +14,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.chatty_be.ChatActivity;
 import com.example.chatty_be.R;
 import com.example.chatty_be.model.UserModel;
-import com.example.chatty_be.ui.chat.ChatFragment;
 import com.example.chatty_be.utils.AndroidUtil;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;

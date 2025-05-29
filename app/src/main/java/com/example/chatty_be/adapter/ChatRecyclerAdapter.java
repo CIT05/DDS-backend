@@ -1,47 +1,92 @@
 package com.example.chatty_be.adapter;
 
 import android.content.Context;
-import android.content.Intent;
+import android.util.Base64;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.chatty_be.ChatActivity;
+import com.example.chatty_be.ChatSession;
+import com.example.chatty_be.ChatSessionStorage;
 import com.example.chatty_be.R;
+import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.ChatMessageModel;
-import com.example.chatty_be.ui.chat.ChatFragment;
-import com.example.chatty_be.utils.AndroidUtil;
 import com.example.chatty_be.utils.FirebaseUtil;
+import com.example.chatty_be.utils.KeyUtil;
+import com.example.chatty_be.utils.MessagesUtil;
 import com.firebase.ui.firestore.FirestoreRecyclerAdapter;
 import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 
+import java.security.PrivateKey;
+import java.security.PublicKey;
+
 public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageModel, ChatRecyclerAdapter.ChatModelViewHolder> {
     Context context;
-    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context ) {
+
+    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context) {
         super(options);
         this.context = context;
     }
 
     @Override
     protected void onBindViewHolder(@NonNull ChatModelViewHolder holder, int position, @NonNull ChatMessageModel model) {
-        Log.d("ChatAdapter", "Current UID: " + FirebaseUtil.getCurrentUserId() + ", SenderID: " + model.getSendeerId());
-
-        if(model.getSendeerId().equals(FirebaseUtil.getCurrentUserId())){
+        if(model.getSendeerId() != null && model.getSendeerId().equals(FirebaseUtil.getCurrentUserId())){
             holder.leftChatLayout.setVisibility(View.GONE);
             holder.rightChatLayout.setVisibility(View.VISIBLE);
             holder.rightChatTextView.setText(model.getMessage());
 
         }else{
+
+
             holder.rightChatLayout.setVisibility(View.GONE);
             holder.leftChatLayout.setVisibility(View.VISIBLE);
-            holder.leftChatTextView.setText(model.getMessage());
+
+            String decryptedMessage = "[Encrypted]";
+            if (model.getEncryptedMessage() != null) {
+                try {
+                    String senderId = model.getSendeerId();
+
+                    ChatSession session = ChatSessionStorage.getReceiveSession(
+                            senderId,
+                            model.getEncryptedMessage().getEphemeralPublicKey(),
+                            KeyManager.getPrivateKey(context)
+                    );
+
+
+                    byte[] rawKey = Base64.decode(model.getEncryptedMessage().getEphemeralPublicKey(), Base64.NO_WRAP);
+                    PublicKey peerEphemeralKey = KeyUtil.decodePublicKey(rawKey);
+                    PrivateKey myPrivateKey = KeyManager.getPrivateKey(context);
+                    session.applyPeerEphemeralKeyIfChanged(peerEphemeralKey, myPrivateKey);
+
+                    Log.d("ReceiverLog", "Incoming message from: " + model.getSendeerId());
+
+                    Log.d("ReceiverLog", "Base64 Ephemeral: " + model.getEncryptedMessage().getEphemeralPublicKey());
+                    Log.d("ReceiverLog", "Base64 IV: " + model.getEncryptedMessage().getIv());
+                    Log.d("ReceiverLog", "Base64 Ciphertext: " + model.getEncryptedMessage().getCiphertext());
+
+                    session.applyPeerEphemeralKeyIfChanged(peerEphemeralKey, myPrivateKey);
+
+                    decryptedMessage = MessagesUtil.decryptMessage(
+
+                            model.getEncryptedMessage().getCiphertext(),
+                            model.getEncryptedMessage().getIv(),
+                            session
+                    );
+
+                    System.out.println("Decrypted message: " + decryptedMessage);
+                } catch (Exception e) {
+                    Log.e("ChatAdapter", "Decryption failed", e);
+                    decryptedMessage = "[Decryption failed]";
+                }
+            }
+
+            holder.leftChatTextView.setText(decryptedMessage);
         }
 
     }
