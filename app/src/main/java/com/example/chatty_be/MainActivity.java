@@ -63,21 +63,8 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-        // test- fetching all users public keys
-        FriendRequestManager manager = new FriendRequestManager(this);
+        String userId = FirebaseUtil.getCurrentUserId();
 
-        FirebaseUtil.allUsersCollectionReference()
-                .get()
-                .addOnSuccessListener(queryDocumentSnapshots -> {
-                    String currentUserId = FirebaseUtil.getCurrentUserId();
-
-                    for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
-                        String userId = doc.getId();
-                    }
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("UserFetch", "Failed to fetch users", e);
-                });
         try {
             KeyManager.initIdentityKeys(this);
             checkAndSyncPublicKey(this);
@@ -86,7 +73,8 @@ public class MainActivity extends AppCompatActivity {
 
         }
 
-        checkAndSyncPublicKey(this);
+        FriendRequestManager manager = new FriendRequestManager(this);
+        manager.fetchFriendsPublicKeys(userId);
 
         getFCMToken();
     }

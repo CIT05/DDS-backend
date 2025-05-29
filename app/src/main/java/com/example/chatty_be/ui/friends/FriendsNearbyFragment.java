@@ -196,6 +196,7 @@ public class FriendsNearbyFragment extends Fragment {
 
                 FirebaseUtil.allUserLocationReference().
                         whereNotEqualTo("userId", currentUserId)
+                        .whereIn("userId", friendIds)
                         .whereGreaterThan("expireAt", currentTimestamp)
                         .whereGreaterThanOrEqualTo("latitude", minMaxCoordinates.minLat)
                         .whereLessThanOrEqualTo("latitude", minMaxCoordinates.maxLat)
@@ -212,7 +213,6 @@ public class FriendsNearbyFragment extends Fragment {
 
                                     UserLocationModel userLocation = document.toObject(UserLocationModel.class);
 
-                                    Log.d("FriendsNearbyFragment", "userLocation:" + userLocation);
 
 
                                     boolean isUserInsideTheCircle = LocationUtil.isCoordinatesInCircle(

@@ -9,7 +9,9 @@ import com.example.chatty_be.model.ChatRoomModel;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.google.firebase.Timestamp;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 
 public class FriendRequestManager {
@@ -213,6 +215,51 @@ public class FriendRequestManager {
                     Log.e("FriendRequestManager", "Failed to delete incoming request: " + e.getMessage());
                     Toast.makeText(context, "Failed to accept request.", Toast.LENGTH_SHORT).show();
                     callback.onResult(false);
+                });
+    }
+
+    public void fetchFriendsPublicKeys(String currentUserId){
+        EncryptedStorePreference encryptedStorePreference = new EncryptedStorePreference(context);
+        FirebaseUtil.getFriendsRef(currentUserId)
+                .get()
+                .addOnSuccessListener(queryDocumentSnapshots -> {
+
+
+                    List<String> friendIds = new ArrayList<>();
+
+                    for (var document : queryDocumentSnapshots.getDocuments()) {
+                        String friendId = document.getId();
+                        friendIds.add(friendId);
+                    }
+
+                    if (friendIds.isEmpty()) {
+                        Log.d("FriendRequestManager", "No friends found for user: " + currentUserId);
+                        return;
+                    }
+
+                    for(String friendId : friendIds) {
+                        FirebaseUtil.getUserByUserId(friendId).get()
+                                .addOnSuccessListener(documentSnapshot -> {
+                                    if (documentSnapshot.exists()) {
+                                        String publicKey = documentSnapshot.getString("publicKey");
+                                        Log.d("FriendRequestManager", "Fetched public key for friend: " + friendId + " - " + publicKey);
+                                        if (publicKey != null && !publicKey.isEmpty()) {
+                                            encryptedStorePreference.put(friendId, publicKey);
+                                            Log.d("FriendRequestManager", "Stored public key for friend: " + friendId);
+                                        } else {
+                                            Log.w("FriendRequestManager", "No public key found for friend: " + friendId);
+                                        }
+                                    } else {
+                                        Log.w("FriendRequestManager", "No user document found for friend: " + friendId);
+                                    }
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e("FriendRequestManager", "Failed to fetch public key for friend: " + friendId + " - " + e.getMessage());
+                                });
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("FriendRequestManager", "Failed to fetch friends' public keys: " + e.getMessage());
                 });
     }
 
