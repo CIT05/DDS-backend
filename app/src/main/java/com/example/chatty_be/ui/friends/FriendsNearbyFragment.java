@@ -194,6 +194,12 @@ public class FriendsNearbyFragment extends Fragment {
                 for (QueryDocumentSnapshot document : friendTask.getResult())
                     friendIds.add(document.getId());
 
+                if (friendIds.isEmpty()) {
+                    displayError("No friends to show nearby.");
+                    requestFriendsButton.setVisibility(View.VISIBLE);
+                    return;
+                }
+
                 FirebaseUtil.allUserLocationReference().
                         whereNotEqualTo("userId", currentUserId)
                         .whereIn("userId", friendIds)
