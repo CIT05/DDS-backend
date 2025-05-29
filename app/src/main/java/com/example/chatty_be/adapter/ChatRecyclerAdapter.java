@@ -17,6 +17,7 @@ import com.example.chatty_be.ChatSessionStorage;
 import com.example.chatty_be.R;
 import com.example.chatty_be.crypto.KeyManager;
 import com.example.chatty_be.model.ChatMessageModel;
+import com.example.chatty_be.ui.chat.ChatViewModel;
 import com.example.chatty_be.utils.FirebaseUtil;
 import com.example.chatty_be.utils.KeyUtil;
 import com.example.chatty_be.utils.MessagesUtil;
@@ -25,17 +26,30 @@ import com.firebase.ui.firestore.FirestoreRecyclerOptions;
 
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
+import java.util.List;
 
-public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageModel, ChatRecyclerAdapter.ChatModelViewHolder> {
+public class ChatRecyclerAdapter extends RecyclerView.Adapter<ChatRecyclerAdapter.ChatModelViewHolder> {
     Context context;
+    List<ChatMessageModel> chatMessages = new ArrayList<>();
 
-    public ChatRecyclerAdapter(@NonNull FirestoreRecyclerOptions<ChatMessageModel> options, Context context) {
-        super(options);
+    @Override
+    public int getItemCount() {
+        return chatMessages.size();
+    }
+    public ChatRecyclerAdapter(Context context) {
         this.context = context;
     }
 
+    public void addMessage(ChatMessageModel message) {
+        chatMessages.add(message);
+        notifyItemInserted(chatMessages.size() - 1);
+    }
+
     @Override
-    protected void onBindViewHolder(@NonNull ChatModelViewHolder holder, int position, @NonNull ChatMessageModel model) {
+    public void onBindViewHolder(@NonNull ChatModelViewHolder holder, int position) {
+        ChatMessageModel model = chatMessages.get(position);
+
         if(model.getSendeerId() != null && model.getSendeerId().equals(FirebaseUtil.getCurrentUserId())){
             holder.leftChatLayout.setVisibility(View.GONE);
             holder.rightChatLayout.setVisibility(View.VISIBLE);
@@ -103,8 +117,6 @@ public class ChatRecyclerAdapter extends FirestoreRecyclerAdapter<ChatMessageMod
         LinearLayout leftChatLayout, rightChatLayout;
         TextView leftChatTextView, rightChatTextView;
 
-
-      
 
         public ChatModelViewHolder(@NonNull View itemView) {
             super(itemView);

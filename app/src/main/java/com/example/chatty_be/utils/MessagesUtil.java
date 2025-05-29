@@ -5,6 +5,9 @@ import android.util.Log;
 
 import com.example.chatty_be.ChatSession;
 import com.example.chatty_be.EncryptedMessage;
+import com.example.chatty_be.model.ChatMessageModel;
+import com.google.firebase.Timestamp;
+import com.google.gson.Gson;
 
 import java.util.Arrays;
 
@@ -54,5 +57,31 @@ public class MessagesUtil {
             return null;
         }
     }
+
+    public static String convertChatMessageModelToPayload(ChatMessageModel chatMessageModel) {
+        EncryptedMessage em = chatMessageModel.getEncryptedMessage();
+
+        String encryptedMessageJson = String.format(
+                "{\"ciphertext\":\"%s\", \"iv\":\"%s\", \"ephemeralPublicKey\":\"%s\"}",
+                em.getCiphertext(),
+                em.getIv(),
+                em.getEphemeralPublicKey()
+        );
+
+        return String.format(
+                "{\"encryptedMessage\":%s, \"message\":\"%s\", \"senderId\":\"%s\", \"timestamp\":%d}",
+                encryptedMessageJson,
+                chatMessageModel.getMessage(),
+                chatMessageModel.getSendeerId(),
+                chatMessageModel.getTimestamp().getSeconds()
+        );
+    }
+
+    public static ChatMessageModel convertPayloadToChatMessageModel(String payload) {
+        Gson gson = new Gson();
+        return gson.fromJson(payload, ChatMessageModel.class);
+    }
 }
+
+
 

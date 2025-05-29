@@ -15,11 +15,21 @@
         app:layout_anchorGravity="center"
         app:popupTheme="@style/Theme.Chattybe.PopupOverlay">
 
-        <FrameLayout
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
+            android:gravity="center_vertical"
             >
+
+            <View
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/green_dot"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/back_button_chat"
+                android:id="@+id/green_dot"
+                android:visibility="gone"
+                />
 
             <TextView
                 android:layout_width="match_parent"
@@ -28,31 +38,31 @@
                 android:textSize="22sp"
                 android:textStyle="bold"
                 android:textColor="@color/white"
-                android:layout_marginStart="60dp"
+                android:layout_marginStart="10dp"
                 android:layout_centerVertical="true"
-                android:layout_toRightOf="@id/profile_pic_layout"
+                android:layout_toEndOf="@id/green_dot"
                 android:id="@+id/other_username"/>
 
             <include layout="@layout/profile_pic_view"
                 android:layout_width="30dp"
                 android:layout_height="30dp"
                 android:layout_marginStart="23dp"
-                android:layout_toRightOf="@id/back_button"
+                android:layout_centerVertical="true"
+                android:layout_toEndOf="@id/other_username"
                 android:id="@+id/profile_pic_layout"
                 />
 
             <ImageButton
                 android:id="@+id/back_button_chat"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:layout_centerVertical="true"
                 android:src="@drawable/arrow_back"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 app:tint="@color/white"/>
 
-        </FrameLayout>
+        </RelativeLayout>
 
 
     </androidx.appcompat.widget.Toolbar>
@@ -73,17 +83,21 @@
         android:padding="8dp"
         android:id="@+id/bottom_layout"
         >
+
         <EditText
+            android:id="@+id/chat_message_input"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="Write message here"
             android:layout_centerInParent="true"
             android:layout_margin="10dp"
+            android:layout_toLeftOf="@id/message_send_btn"
+            android:width="48dp"
+            android:height="48dp"
             android:background="@drawable/edit_text_rounded_corner"
             android:elevation="4dp"
-            android:padding="10dp"
-            android:layout_toLeftOf="@id/message_send_btn"
-            android:id="@+id/chat_message_input"/>
+            android:hint="Write message here"
+            android:minHeight="48dp"
+            android:padding="10dp" />
 
         <ImageButton
             android:layout_width="48dp"
