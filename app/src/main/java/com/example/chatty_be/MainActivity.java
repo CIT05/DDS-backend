@@ -63,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
             startActivity(intent);
         });
 
-
         // test- fetching all users public keys
         FriendRequestManager manager = new FriendRequestManager(this);
 
@@ -74,21 +73,16 @@ public class MainActivity extends AppCompatActivity {
 
                     for (DocumentSnapshot doc : queryDocumentSnapshots.getDocuments()) {
                         String userId = doc.getId();
-
-                        if (!userId.equals(currentUserId)) {
-                            manager.onFriendshipAccept(userId);
-                        }
                     }
                 })
                 .addOnFailureListener(e -> {
                     Log.e("UserFetch", "Failed to fetch users", e);
                 });
-
         try {
             KeyManager.initIdentityKeys(this);
             checkAndSyncPublicKey(this);
         } catch (Exception e) {
-            Log.e("MainActivity", "Key initialization or sync failed", e);
+            Log.e("MainActivity", "Key initialization or sync failed: " + e.getMessage());
 
         }
 
@@ -135,13 +129,13 @@ public class MainActivity extends AppCompatActivity {
                     Log.w("KeyCheck", "Uploading public key to Firebase");
                     FirebaseUtil.currentUserDetails().update("publicKey", localKey)
                             .addOnSuccessListener(aVoid -> Log.d("KeyCheck", "Uploaded public key to firebase"))
-                            .addOnFailureListener(e -> Log.e("KeyCheck", "Cannot upload public key to firebase", e));
+                            .addOnFailureListener(e -> Log.e("KeyCheck", "Cannot upload public key to firebase: ", e));
                 } else {
                     Log.d("KeyCheck", "Public key matching");
                 }
 
             } catch (Exception e) {
-                Log.e("KeyCheck", "Failed to update public key", e);
+                Log.e("KeyCheck", "Failed to update public key: " + e.getMessage());
             }
         }).addOnFailureListener(e -> Log.e("KeyCheck", "Error fetching public key from Firestore", e));
     }

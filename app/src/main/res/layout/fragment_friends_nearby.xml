@@ -3,15 +3,101 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.friends.FriendsRequestFragment">
+    tools:context=".ui.friends.FriendsNearbyFragment">
 
 
-    <TextView
-        android:id="@+id/friend_requests_text"
+    <ProgressBar
+        android:id="@+id/progressBar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Friends Nearby"
+        android:layout_centerInParent="true"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/friendsNearbyLoadingText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/progressBar"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="12dp"
+        android:text="Looking for friends nearby..."
         android:textSize="20sp"
         android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/friendsNearbyContentSuccess"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentTop="true"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/friend_requests_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="People in your area"
+            android:layout_marginStart="20dp"
+            android:textSize="30sp"
+            android:textStyle="bold" />
+
+        <androidx.recyclerview.widget.RecyclerView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/friend_requests_text"
+        android:padding="10dp"
+        android:id="@+id/friendsNearbyListContainer" />
+
+
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:id="@+id/friendsNearbyContentError"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_centerInParent="true"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/friendsNearbyErrorText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Could not find friends nearby"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/requestFriendsButton"
+            android:text="Request Friends"
+            android:layout_marginTop="12dp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:backgroundTint="@color/secondary"
+            />
+    </LinearLayout>
+
+
+    <LinearLayout
+        android:id="@+id/locationPermissionDenied"
+        android:visibility="gone"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        >
+
+        <TextView
+            android:id="@+id/locationPermissionDeniedText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="You need to enable location first"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+
+</LinearLayout>
 
 </RelativeLayout>
