@@ -11,7 +11,6 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -84,9 +83,10 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onStart(){
         super.onStart();
-        enterRoomPresence();
+        getOrCreateChatRoomModel(() -> {
+            enterRoomPresence();
+        });
     }
-
     @Override
     protected void onStop(){
         super.onStop();
@@ -131,8 +131,6 @@ public class ChatActivity extends AppCompatActivity {
         FriendRequestManager friendRequestManager = new FriendRequestManager(this);
         friendRequestManager.checkFriendPublicKeyAndFetchItIfNeeded(otherUser.getUserId());
 
-        getOrCreateChatRoomModel();
-
         setupWebRTC();
 
         setupChatRecyclerView();
@@ -150,6 +148,11 @@ public class ChatActivity extends AppCompatActivity {
         chatRoomModel.setLastMessageSenderId(FirebaseUtil.getCurrentUserId());
         chatRoomModel.setLastMessage(message);
         FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
+
+        if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
+            Log.e("ChatDataChannel", "Data channel not ready. State: " + (dataChannel != null ? dataChannel.state() : "null"));
+            return;
+        }
 
         ChatSession chatSession;
         try {
@@ -178,11 +181,6 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
 
-        if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
-            Log.e("ChatDataChannel", "Data channel is null, cannot send message");
-            return;
-        }
-
         Log.d("SenderLog", "Ciphertext: " + encrypted.getCiphertext());
         Log.d("SenderLog", "IV: " + encrypted.getIv());
         Log.d("SenderLog", "Ephemeral Key: " + encrypted.getEphemeralPublicKey());
@@ -203,7 +201,7 @@ public class ChatActivity extends AppCompatActivity {
         messageInput.setText("");
     }
 
-    void getOrCreateChatRoomModel() {
+    void getOrCreateChatRoomModel(Runnable onComplete) {
         FirebaseUtil.getChatRoomReference(chatRoomId).get().addOnCompleteListener(task -> {
             if (task.isSuccessful()) {
                 chatRoomModel = task.getResult().toObject(ChatRoomModel.class);
@@ -215,9 +213,18 @@ public class ChatActivity extends AppCompatActivity {
                             Timestamp.now(),
                             ""
                     );
-
-                    FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
+                    FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel).addOnCompleteListener(setTask -> {
+                        if (onComplete != null) {
+                            onComplete.run();
+                        }
+                    });
+                } else {
+                    if (onComplete != null) {
+                        onComplete.run();
+                    }
                 }
+            } else {
+                Log.e("ChatActivity", "Error getting or creating chat room", task.getException());
             }
         });
     }
@@ -308,19 +315,27 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onDataChannel(DataChannel dc) {
+                Log.d("WebRTC-DEBUG", "onDataChannel triggered!"); // Added log
+                Log.d("WebRTC", "Data channel received by callee!");
                 dataChannel = dc;
                 attachDataChannelCallbacks(dataChannel);
             }
-
             @Override
             public void onRenegotiationNeeded() {
 
             }
         });
+        Log.d("WebRTC-SETUP", "PeerConnection created"); // Added log
+
+        if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
+            Log.e("ChatDataChannel", "Data channel is null or not open, cannot send message. State: " + (dataChannel != null ? dataChannel.state() : "null"));
+            return;
+        }
 
         if (iAmCaller) {
             dataChannel = peerConnection.createDataChannel("chat", new DataChannel.Init());
             attachDataChannelCallbacks(dataChannel);
+            Log.d("WebRTC", "Caller created data channel.");
         }
 
         if (iAmCaller) {
@@ -417,9 +432,13 @@ public class ChatActivity extends AppCompatActivity {
             public void onBufferedAmountChange(long l) {
             }
 
+
             @Override
             public void onStateChange() {
-                Log.d("DC", "state " + dc.state());
+                Log.d("DC", "Data Channel State: " + dc.state());
+                if (dc.state() == DataChannel.State.OPEN) {
+                    Log.d("DC", "Data Channel is now OPEN!");
+                }
             }
         });
     }
@@ -496,7 +515,8 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public void onCreateSuccess(SessionDescription sessionDescription) {
-            Log.d(tag, "SDP created successfully: " + sessionDescription);
+            // Log only the type of the SDP for cleaner output
+            Log.d(tag, "SDP created successfully: " + sessionDescription.type.canonicalForm());
         }
 
         @Override
@@ -516,30 +536,34 @@ public class ChatActivity extends AppCompatActivity {
     }
 
     private void enterRoomPresence() {
-        String myId   = FirebaseUtil.getCurrentUserId();
+        String myId = FirebaseUtil.getCurrentUserId();
         String friendId = otherUser.getUserId();
-
         chatroomReference.update("active", FieldValue.arrayUnion(myId))
-                .addOnSuccessListener(r -> iAmInRoom = true);
+                .addOnSuccessListener(r -> {
+                    iAmInRoom = true;
+                });
 
         activeListener = chatroomReference.addSnapshotListener((snap, e) -> {
-            if (e != null || snap == null) return;
+            if (e != null || snap == null) {return;}
 
             List<String> active = (List<String>) snap.get("active");
             if (active == null) active = Collections.emptyList();
 
             boolean newPeerState = active.contains(friendId);
-            isPeerInRoom = newPeerState;
+            if (newPeerState != isPeerInRoom) {
+                isPeerInRoom = newPeerState;
 
-            if (isPeerInRoom && iAmInRoom) startOrContinueWebRtc();
-            else if (!isPeerInRoom && peerConnection != null) {
-                hangUp();
+                if (isPeerInRoom && iAmInRoom) {
+                    startOrContinueWebRtc();
+                } else if (!isPeerInRoom && peerConnection != null) {
+                    hangUp();
+                }
+
+                runOnUiThread(() -> {
+                    View status = findViewById(R.id.green_dot);
+                    status.setVisibility(isPeerInRoom ? View.VISIBLE : View.GONE);
+                });
             }
-
-            runOnUiThread(() -> {
-                View status = findViewById(R.id.green_dot);
-                status.setVisibility(isPeerInRoom ? View.VISIBLE : View.GONE);
-            });
         });
     }
 
@@ -548,16 +572,9 @@ public class ChatActivity extends AppCompatActivity {
         if (activeListener != null) activeListener.remove();
         chatroomReference.update("active", FieldValue.arrayRemove(FirebaseUtil.getCurrentUserId()));
     }
-
     private void startOrContinueWebRtc(){
         if (peerConnection == null || dataChannel == null) {
             setupWebRTC();
-        } else {
-            Log.d("ChatActivity", "WebRTC already set up, continuing...");
         }
     }
-
-
-
-
 }
