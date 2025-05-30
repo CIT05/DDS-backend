@@ -31,12 +31,16 @@ import com.bumptech.glide.Glide;
 import com.example.chatty_be.AddReviewActivity;
 import com.example.chatty_be.R;
 import com.example.chatty_be.databinding.FragmentMapBinding;
+import com.example.chatty_be.ui.friends.FriendsNearbyFragment;
+import com.example.chatty_be.ui.friends.FriendsRequestFragment;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.GeoPoint;
+import com.google.firebase.firestore.QuerySnapshot;
 import com.mapbox.geojson.Point;
 import com.mapbox.maps.CameraOptions;
 import com.mapbox.maps.Style;
@@ -50,6 +54,7 @@ import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions;
 import com.mapbox.maps.plugin.gestures.GesturesPlugin;
 import com.mapbox.maps.plugin.gestures.OnMapClickListener;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,6 +65,8 @@ public class MapFragment extends Fragment {
     private FusedLocationProviderClient fusedClient;
     private PointAnnotationManager pointAnnotationManager;
     private final Map<PointAnnotation, DocumentSnapshot> annotationMap = new HashMap<>();
+    BottomNavigationView bottomNav;
+
 
     private final ActivityResultLauncher<String> coarsePermissionLauncher =
             registerForActivityResult(
@@ -142,6 +149,9 @@ public class MapFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle state) {
         super.onViewCreated(view, state);
+
+        bottomNav = binding.bottomNavigation;
+
         if (ContextCompat.checkSelfPermission(requireContext(),
                 Manifest.permission.ACCESS_COARSE_LOCATION)
                 == PackageManager.PERMISSION_GRANTED) {
@@ -149,6 +159,26 @@ public class MapFragment extends Fragment {
         } else {
             coarsePermissionLauncher.launch(Manifest.permission.ACCESS_COARSE_LOCATION);
         }
+
+        bottomNav.setOnItemSelectedListener(item -> {
+            String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+            if (item.getItemId() == R.id.menu_my_pins) {
+                FirebaseFirestore.getInstance()
+                        .collection("reviews")
+                        .whereEqualTo("userUid", currentUserId)
+                        .get()
+                        .addOnSuccessListener(this::renderReviewAnnotations)
+                        .addOnFailureListener(e ->
+                                Toast.makeText(getContext(), "Failed to load your pins", Toast.LENGTH_SHORT).show()
+                        );
+            } else if (item.getItemId() == R.id.menu_my_friends_pins) {
+                loadFriendUidsAndDisplayPins();
+            }
+
+            return true;
+        });
+
     }
 
     @SuppressLint("MissingPermission")
@@ -205,4 +235,68 @@ public class MapFragment extends Fragment {
         d.draw(c);
         return bmp;
     }
+
+    private void loadFriendUidsAndDisplayPins() {
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
+        FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(currentUserId)
+                .collection("friends")
+                .get()
+                .addOnSuccessListener(snapshot -> {
+                    // Classic loop instead of stream().toList()
+                    List<String> friendUids = new ArrayList<>();
+                    for (DocumentSnapshot doc : snapshot.getDocuments()) {
+                        friendUids.add(doc.getId());
+                    }
+
+                    if (friendUids.isEmpty()) {
+                        pointAnnotationManager.deleteAll();
+                        Toast.makeText(getContext(), "No friends found.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+
+                    // Now query reviews for those UIDs
+                    FirebaseFirestore.getInstance()
+                            .collection("reviews")
+                            .whereIn("userUid", friendUids)
+                            .get()
+                            .addOnSuccessListener(this::renderReviewAnnotations)
+                            .addOnFailureListener(e ->
+                                    Toast.makeText(getContext(), "Failed to load friend pins", Toast.LENGTH_SHORT).show()
+                            );
+                })
+                .addOnFailureListener(e ->
+                        Toast.makeText(getContext(), "Failed to load friends list", Toast.LENGTH_SHORT).show()
+                );
+    }
+
+
+    private void renderReviewAnnotations(QuerySnapshot snapshots) {
+        pointAnnotationManager.deleteAll();
+        annotationMap.clear();
+
+        for (DocumentSnapshot doc : snapshots.getDocuments()) {
+            GeoPoint gp = doc.getGeoPoint("geo");
+            if (gp == null) continue;
+
+            Point pt = Point.fromLngLat(gp.getLongitude(), gp.getLatitude());
+            PointAnnotationOptions opts = new PointAnnotationOptions()
+                    .withPoint(pt)
+                    .withIconImage(bitmapFromDrawable(R.drawable.red_marker))
+                    .withIconSize(3.0f);
+
+            PointAnnotation ann = pointAnnotationManager.create(opts);
+            annotationMap.put(ann, doc);
+        }
+
+        pointAnnotationManager.addClickListener(annotation -> {
+            DocumentSnapshot clicked = annotationMap.get(annotation);
+            if (clicked != null) showReviewPopup(clicked);
+            return true;
+        });
+    }
+
+
 }
