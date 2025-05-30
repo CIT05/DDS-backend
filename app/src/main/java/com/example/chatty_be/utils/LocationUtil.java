@@ -1,9 +1,28 @@
 package com.example.chatty_be.utils;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import ch.hsr.geohash.GeoHash;
+
 public class LocationUtil {
 
     private static final double METERS_PER_DEGREE = 111_000;
 
+    public static String encodeGeohash(double lat, double lon, int precision) {
+        return GeoHash.withCharacterPrecision(lat, lon, precision)
+                .toBase32();
+    }
+
+    public static List<String> getGeohashNeighbors(String geohash) {
+        GeoHash center = GeoHash.fromGeohashString(geohash);
+        GeoHash[] adjacent = center.getAdjacent();
+        List<String> result = new ArrayList<>(adjacent.length);
+        for (GeoHash g : adjacent) {
+            result.add(g.toBase32());
+        }
+        return result;
+    }
 
     public static double roundLocation(double coordinates, double precisionMeters) {
         double precisionDegrees = precisionMeters / METERS_PER_DEGREE;

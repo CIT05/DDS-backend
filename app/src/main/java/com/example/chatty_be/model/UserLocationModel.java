@@ -9,16 +9,22 @@ public class UserLocationModel {
     private String userId;
     private Timestamp expireAt;
 
+    private String geoHash;
+
 
     public UserLocationModel () {
     }
 
-    public UserLocationModel(double latitude, double longitude, String userId, Timestamp expireAt) {
+    public UserLocationModel(double latitude, double longitude, String userId, Timestamp expireAt, String geoHash) {
         this.latitude = latitude;
         this.longitude = longitude;
         this.userId = userId;
         this.expireAt = expireAt;
+        this.geoHash = geoHash;
     }
+
+    public String getGeoHash()  { return geoHash; }
+    public void setGeoHash(String geoHash)       { this.geoHash = geoHash; }
 
     public double getLatitude() {
         return latitude;

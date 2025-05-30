@@ -15,6 +15,7 @@ public class UserModel {
     private String fcmToken;
 
 
+
     public String getPhone() {
         return phone;
     }

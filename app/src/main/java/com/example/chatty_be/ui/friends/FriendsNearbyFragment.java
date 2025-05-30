@@ -148,6 +148,9 @@ public class FriendsNearbyFragment extends Fragment {
     }
 
     private void displayNearbyUsersDetails(Map<String, UserLocationModel> userLocations) {
+        progressBar.setVisibility(View.GONE);
+        loadingText.setVisibility(View.GONE);
+
         if (userLocations.isEmpty()) {
             displayError("No nearby users found.");
             requestFriendsButton.setVisibility(View.VISIBLE);
@@ -184,77 +187,34 @@ public class FriendsNearbyFragment extends Fragment {
 
     }
 
-    private void fetchNearbyUsers(double latitude, double longitude, double radius, String currentUserId, Timestamp currentTimestamp) {
-        LocationUtil.MinMaxCoordinates minMaxCoordinates = LocationUtil.getMinMaxCoordinatesBox(latitude, longitude, radius);
+    private void fetchNearbyUsers(String myCell,
+                                  double radiusMeters,
+                                  String currentUserId,
+                                  Timestamp now) {
 
-
-        FirebaseUtil.getFriendsRef(currentUserId).get().addOnCompleteListener(friendTask -> {
-            if (friendTask.isSuccessful()) {
-                List<String> friendIds = new ArrayList<>();
-                for (QueryDocumentSnapshot document : friendTask.getResult())
-                    friendIds.add(document.getId());
-
-                if (friendIds.isEmpty()) {
-                    displayError("No friends to show nearby.");
-                    requestFriendsButton.setVisibility(View.VISIBLE);
-                    return;
-                }
-
-                FirebaseUtil.allUserLocationReference().
-                        whereNotEqualTo("userId", currentUserId)
-                        .whereIn("userId", friendIds)
-                        .whereGreaterThan("expireAt", currentTimestamp)
-                        .whereGreaterThanOrEqualTo("latitude", minMaxCoordinates.minLat)
-                        .whereLessThanOrEqualTo("latitude", minMaxCoordinates.maxLat)
-                        .whereGreaterThanOrEqualTo("longitude", minMaxCoordinates.minLon)
-                        .whereLessThanOrEqualTo("longitude", minMaxCoordinates.maxLat)
-                        .get()
-                        .addOnCompleteListener(task1 -> {
-                            if (task1.isSuccessful()) {
-
-                                Map<String, UserLocationModel> userLocations = new HashMap<String, UserLocationModel>();
-
-
-                                for (QueryDocumentSnapshot document : task1.getResult()) {
-
-                                    UserLocationModel userLocation = document.toObject(UserLocationModel.class);
-
-
-
-                                    boolean isUserInsideTheCircle = LocationUtil.isCoordinatesInCircle(
-                                            userLocation.getLatitude(),
-                                            userLocation.getLongitude(),
-                                            latitude,
-                                            longitude,
-                                            radius);
-
-                                    if (isUserInsideTheCircle) {
-                                        userLocations.put(userLocation.getUserId(), userLocation);
-                                    }
-                                }
-
-                                displayNearbyUsersDetails(userLocations);
-
-                                if (task1.getResult().isEmpty()) {
-                                    displayError("No nearby users found.");
-                                    requestFriendsButton.setVisibility(View.VISIBLE);
-                                } else {
-                                    loadingText.setVisibility(View.GONE);
-                                    progressBar.setVisibility(View.GONE);
-                                    friendsNearbyContentSuccess.setVisibility(View.VISIBLE);
-                                }
-                            } else {
-                                displayError("No nearby users found.");
-                                requestFriendsButton.setVisibility(View.VISIBLE);
-                            }
-                        });
-            } else {
-                Log.w("FriendsNearbyFragment", "Error getting friends", friendTask.getException());
-                displayError("Failed to fetch friends. Please try again later.");
-            }
-        });
-
+        FirebaseUtil.allUserLocationReference()
+                // only exact same cell
+                .whereEqualTo("geoHash", myCell)
+                .whereGreaterThan("expireAt", now)
+                .get()
+                .addOnSuccessListener(querySnapshot -> {
+                    Map<String, UserLocationModel> hits = new HashMap<>();
+                    for (QueryDocumentSnapshot doc : querySnapshot) {
+                        UserLocationModel ul = doc.toObject(UserLocationModel.class);
+                        if (ul.getUserId().equals(currentUserId)) continue;
+                        hits.put(ul.getUserId(), ul);
+                    }
+                    displayNearbyUsersDetails(hits);
+                })
+                .addOnFailureListener(e -> {
+                    Log.e("FriendsNearby", "Error fetching nearby cells", e);
+                    // show the real exception message to help you debug
+                    displayError("Failed to load nearby cells: " + e.getMessage());
+                });
     }
+
+
+
 
     @SuppressLint("MissingPermission")
     private void getLastLocation() {
@@ -276,29 +236,51 @@ public class FriendsNearbyFragment extends Fragment {
                 });
     }
 
+
+    @SuppressLint("MissingPermission")
     private void saveUserLocation(Location location) {
-        double latitude = LocationUtil.roundLocation(location.getLatitude(), 100);
-        double longitude = LocationUtil.roundLocation(location.getLongitude(), 100);
-        double radius = 5000;
-
-        Timestamp expireAt = new Timestamp(Timestamp.now().getSeconds() + 30 * 60, 0);
-
         String currentUserId = FirebaseUtil.getCurrentUserId();
-        Timestamp currentTimestamp = Timestamp.now();
 
-        userLocationModel = new UserLocationModel(
-                latitude, longitude, currentUserId, expireAt);
+        // 1) pick your blur-size (5 chars ≃4.9×4.9 km)
+        String cell = LocationUtil.encodeGeohash(
+                location.getLatitude(),
+                location.getLongitude(),
+                /*precision=*/5
+        );
 
-        Log.d("FriendsNearbyFragment", "Saving location: Lat=" + location.getLatitude() + ", Lng=" + location.getLongitude());
+        // 2) expire after 30 min
+        Timestamp expireAt = new Timestamp(
+                Timestamp.now().getSeconds() + 30 * 60,
+                0
+        );
 
+        // 3) build the model
+        UserLocationModel locModel = new UserLocationModel(
+                location.getLatitude(),
+                location.getLongitude(),
+                currentUserId,
+                expireAt,
+                cell
+        );
 
-        FirebaseUtil.getUserLocationReference(FirebaseUtil.getCurrentUserId()).set(userLocationModel).addOnCompleteListener(task -> {
-            if (task.isSuccessful()) {
-                Log.d("FriendsNearbyFragment", "User location set successfully");
-                fetchNearbyUsers(latitude, longitude, radius, currentUserId, currentTimestamp);
-            } else {
-                Log.w("FriendsNearbyFragment", "Can not save user location");
-            }
-        });
+        // 4) write under user_locations/{uid}
+        FirebaseUtil.getUserLocationReference(currentUserId)
+                .set(locModel)
+                .addOnSuccessListener(unused -> {
+                    Log.d("FriendsNearby", "Saved geohash=" + cell);
+                    // kick off the nearby-friends lookup
+                    fetchNearbyUsers(cell,
+                            /*radiusMeters=*/5000,
+                            currentUserId,
+                            Timestamp.now());
+                })
+                .addOnFailureListener(e -> {
+                    Log.w("FriendsNearby", "Could not save blurred location", e);
+                    displayError("Could not save your location. Try again.");
+                });
     }
+
+
+
+
 }
