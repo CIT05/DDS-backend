@@ -25,12 +25,6 @@ import com.example.chatty_be.utils.FirebaseUtil;
 import com.example.chatty_be.utils.KeyUtil;
 import com.example.chatty_be.utils.MessagesUtil;
 import com.google.firebase.Timestamp;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ServerValue;
-import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.ListenerRegistration;
 
@@ -39,9 +33,11 @@ import org.webrtc.*;
 import com.google.firebase.firestore.*;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -73,24 +69,34 @@ public class ChatActivity extends AppCompatActivity {
 
     private ListenerRegistration calleeIceSnap;
 
+    private ListenerRegistration activeListener;
+
     private PrivateKey privateKey;
 
-    private ListenerRegistration activeListener;
     private boolean isPeerInRoom = false;
 
     private boolean iAmInRoom = false;
 
+    private boolean iAmCaller;
+    private String tag = "ChatActivity WebRTC";
+
+    private List<IceCandidate> bufferedIceCandidates = new ArrayList<>();
+    private boolean isRemoteDescriptionSet = false;
+
+
     @Override
-    protected void onStart(){
+    protected void onStart() {
         super.onStart();
         getOrCreateChatRoomModel(() -> {
             enterRoomPresence();
         });
     }
+
     @Override
-    protected void onStop(){
+    protected void onStop() {
         super.onStop();
         leaveRoomPresence();
+        hangUp();
     }
 
 
@@ -131,9 +137,18 @@ public class ChatActivity extends AppCompatActivity {
         FriendRequestManager friendRequestManager = new FriendRequestManager(this);
         friendRequestManager.checkFriendPublicKeyAndFetchItIfNeeded(otherUser.getUserId());
 
-        setupWebRTC();
+
+        initializeWebRTCFactory();
+
+        chatroomReference = FirebaseUtil.getChatRoomReference(chatRoomId);
+        iAmCaller = FirebaseUtil.getCurrentUserId().compareTo(otherUser.getUserId()) < 0;
+        iAmCaller = FirebaseUtil.getCurrentUserId().compareTo(otherUser.getUserId()) < 0;
+        Log.d(tag, "Is this user the caller? " + iAmCaller + ". My ID: " + FirebaseUtil.getCurrentUserId() + ", Other ID: " + otherUser.getUserId());
+
+        startWebRTCConnection();
 
         setupChatRecyclerView();
+
 
     }
 
@@ -150,7 +165,7 @@ public class ChatActivity extends AppCompatActivity {
         FirebaseUtil.getChatRoomReference(chatRoomId).set(chatRoomModel);
 
         if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
-            Log.e("ChatDataChannel", "Data channel not ready. State: " + (dataChannel != null ? dataChannel.state() : "null"));
+            Log.e(tag, "Data channel not ready. State: " + (dataChannel != null ? dataChannel.state() : "null"));
             return;
         }
 
@@ -245,41 +260,105 @@ public class ChatActivity extends AppCompatActivity {
     }
 
 
-    private void setupWebRTC() {
+    private void startWebRTCConnection() {
 
-
-        try {
-            privateKey = KeyManager.getPrivateKey(this);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        if (peerConnection != null && peerConnection.signalingState() != PeerConnection.SignalingState.CLOSED) {
+            Log.w(tag, "PeerConnection already exists, reusing it.");
+            return;
         }
 
-        PeerConnectionFactory.InitializationOptions options = PeerConnectionFactory.InitializationOptions.builder(this)
-                .createInitializationOptions();
+        Log.d(tag, "Starting WebRTC connection...");
 
-        PeerConnectionFactory.initialize(options);
+        List<PeerConnection.IceServer> iceServers = new ArrayList<>();
 
-        peerConnectionFactory = PeerConnectionFactory.builder()
-                .createPeerConnectionFactory();
+        iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
 
-        boolean iAmCaller = FirebaseUtil.getCurrentUserId().compareTo(otherUser.getUserId()) < 0;
+        String xirsysUsername = "y2V9yEou0l9RrWShaX0ld2c0Bq5DbLzb1ugTD4_XueS1giWFEVE7DaYbpfeURiKoAAAAAGg53HljaGF0dHlhcHA=";
+        String xirsysPassword = "fff26650-3d72-11f0-bbf1-76124099d603";
 
-        chatroomReference = FirebaseUtil.getChatRoomReference(chatRoomId);
+        // TURN server configuration --UDP
+        iceServers.add(PeerConnection.IceServer.builder("turn:fr-turn2.xirsys.com:80?transport=udp")
+                .setUsername(xirsysUsername)
+                .setPassword(xirsysPassword)
+                .createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("turn:fr-turn2.xirsys.com:3478?transport=udp")
+                .setUsername(xirsysUsername)
+                .setPassword(xirsysPassword)
+                .createIceServer());
 
-        List<PeerConnection.IceServer> iceServers = Collections.singletonList(
-                PeerConnection.IceServer.builder("stun:stun.l.google.com:19302")
-                        .createIceServer());
+        // TURN server configuration --TCP
+        iceServers.add(PeerConnection.IceServer.builder("turn:fr-turn2.xirsys.com:80?transport=tcp")
+                .setUsername(xirsysUsername)
+                .setPassword(xirsysPassword)
+                .createIceServer());
+        iceServers.add(PeerConnection.IceServer.builder("turn:fr-turn2.xirsys.com:3478?transport=tcp")
+                .setUsername(xirsysUsername)
+                .setPassword(xirsysPassword)
+                .createIceServer());
+
+        // TURN server configuration --TLS
+        iceServers.add(PeerConnection.IceServer.builder("turns:fr-turn2.xirsys.com:443?transport=tcp")
+                .setUsername(xirsysUsername)
+                .setPassword(xirsysPassword)
+                .createIceServer());
+
+        iceServers.add(PeerConnection.IceServer.builder("turns:fr-turn2.xirsys.com:5349?transport=tcp")
+                .setUsername(xirsysUsername)
+                .setPassword(xirsysPassword)
+                .createIceServer());
+
 
         PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers);
         rtcConfig.sdpSemantics = PeerConnection.SdpSemantics.UNIFIED_PLAN;
+        rtcConfig.iceTransportsType = PeerConnection.IceTransportsType.ALL;
 
         peerConnection = peerConnectionFactory.createPeerConnection(rtcConfig, new PeerConnection.Observer() {
+
+            private final String tag_observer = tag + "-Observer";
+
             @Override
             public void onSignalingChange(PeerConnection.SignalingState signalingState) {
+                Log.d(tag_observer, "Signaling State Changed: " + signalingState);
             }
 
             @Override
             public void onIceConnectionChange(PeerConnection.IceConnectionState iceConnectionState) {
+                Logging.d(tag, "ICE Connection State Changed: " + iceConnectionState.name());
+
+                switch (iceConnectionState) {
+                    case NEW:
+                        Log.d(tag, "ICE Connection State: NEW - Initial state.");
+                        break;
+                    case CHECKING:
+                        Log.d(tag, "ICE Connection State: CHECKING - Probing connectivity.");
+                        break;
+                    case CONNECTED:
+                        Log.d(tag, "ICE Connection State: CONNECTED - One or more ICE candidate pairs successfully connected. Media should flow.");
+                        // This state is often very brief before COMPLETED
+                        break;
+                    case COMPLETED:
+                        Log.d(tag, "ICE Connection State: COMPLETED - All ICE candidate pairs successfully connected. Optimal media flow.");
+                        break;
+                    case FAILED:
+                        Log.e(tag, "ICE Connection State: FAILED - ICE checks failed. No connectivity or all active pairs failed.");
+                        // Potentially trigger a UI update or error handling here
+                        break;
+                    case DISCONNECTED:
+                        Log.w(tag, "ICE Connection State: DISCONNECTED - ICE connectivity lost. May attempt to reconnect.");
+                        // This can happen during temporary network fluctuations
+                        break;
+                    case CLOSED:
+                        Log.i(tag, "ICE Connection State: CLOSED - PeerConnection is closed. No further ICE activity.");
+                        // This might be the problematic state if it happens unexpectedly
+                        break;
+                    default:
+                        Log.d(tag, "ICE Connection State: " + iceConnectionState.name() + " (Unknown state)");
+                        break;
+                }
+
+                if (iceConnectionState == PeerConnection.IceConnectionState.FAILED) {
+                    Log.e(tag_observer, "ICE Connection FAILED! Check network, firewall, STUN/TURN.");
+                }
             }
 
             @Override
@@ -294,8 +373,11 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onIceCandidate(IceCandidate iceCandidate) {
+                Log.d(tag_observer, "ICE Candidate Gathered: sdpMid=" + iceCandidate.sdpMid + ", sdpMLineIndex=" + iceCandidate.sdpMLineIndex + ", candidate=" + iceCandidate.sdp);
                 String sub = iAmCaller ? "callerCandidates" : "calleeCandidates";
-                chatroomReference.collection(sub).add(toMap(iceCandidate));
+                chatroomReference.collection(sub).add(toMap(iceCandidate))
+                        .addOnSuccessListener(docRef -> Log.d(tag_observer, "ICE Candidate uploaded to Firestore: " + docRef.getId()))
+                        .addOnFailureListener(e -> Log.e(tag_observer, "Failed to upload ICE Candidate to Firestore", e));
             }
 
             @Override
@@ -315,30 +397,31 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onDataChannel(DataChannel dc) {
-                Log.d("WebRTC-DEBUG", "onDataChannel triggered!"); // Added log
-                Log.d("WebRTC", "Data channel received by callee!");
+                Log.d(tag_observer, "onDataChannel triggered!"); // Added log
+                Log.d(tag_observer, "Data channel received by callee!");
                 dataChannel = dc;
                 attachDataChannelCallbacks(dataChannel);
             }
+
             @Override
             public void onRenegotiationNeeded() {
 
             }
         });
-        Log.d("WebRTC-SETUP", "PeerConnection created"); // Added log
+        Log.d(tag, "PeerConnection created");
 
-        if (dataChannel == null || dataChannel.state() != DataChannel.State.OPEN) {
-            Log.e("ChatDataChannel", "Data channel is null or not open, cannot send message. State: " + (dataChannel != null ? dataChannel.state() : "null"));
-            return;
-        }
+        MediaConstraints constraints = new MediaConstraints();
+        constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveAudio", "false"));
+        constraints.mandatory.add(new MediaConstraints.KeyValuePair("OfferToReceiveVideo", "false"));
+
 
         if (iAmCaller) {
-            dataChannel = peerConnection.createDataChannel("chat", new DataChannel.Init());
+
+            DataChannel.Init dataChannelInit = new DataChannel.Init();
+            dataChannel = peerConnection.createDataChannel("chat-channel", dataChannelInit);
             attachDataChannelCallbacks(dataChannel);
-            Log.d("WebRTC", "Caller created data channel.");
-        }
+            Log.d(tag, "Data channel created by caller: " + dataChannel.label());
 
-        if (iAmCaller) {
             peerConnection.createOffer(new SdpAdapter("offer") {
                 @Override
                 public void onCreateSuccess(SessionDescription offer) {
@@ -346,17 +429,20 @@ public class ChatActivity extends AppCompatActivity {
                     chatroomReference.set(Collections.singletonMap("offer", toMap(offer)));
 
                 }
-            }, new MediaConstraints());
+            }, constraints);
 
             chatRoomSnap = chatroomReference.addSnapshotListener((snapshot, event) -> {
                 if (snapshot != null && snapshot.contains("answer") && peerConnection.getRemoteDescription() == null) {
                     Map<String, String> answerMap = (Map<String, String>) snapshot.get("answer");
 
-                    SessionDescription sd = new SessionDescription(
-                            SessionDescription.Type.fromCanonicalForm(answerMap.get("type")),
-                            answerMap.get("sdp"));
+                    if (answerMap != null) {
+                        SessionDescription sd = new SessionDescription(
+                                SessionDescription.Type.fromCanonicalForm(answerMap.get("type")),
+                                answerMap.get("sdp"));
 
-                    peerConnection.setRemoteDescription(new SdpAdapter("remote"), sd);
+                        peerConnection.setRemoteDescription(new SdpAdapter("remote"), sd);
+                    }
+
                 }
             });
 
@@ -395,6 +481,35 @@ public class ChatActivity extends AppCompatActivity {
 
     private void attachDataChannelCallbacks(DataChannel dc) {
         dc.registerObserver(new DataChannel.Observer() {
+            private final String tag_dataChannel = tag + "-DataChannel";
+
+            @Override
+            public void onBufferedAmountChange(long previousAmount) {
+                Log.d(tag_dataChannel, "Data Channel Buffered Amount Change: " + previousAmount);
+            }
+
+            @Override
+            public void onStateChange() {
+                DataChannel.State state = dc.state();
+                Log.d(tag_dataChannel, "Data Channel State Changed: " + state);
+
+                if (state == DataChannel.State.OPEN) {
+                    Log.d(tag_dataChannel, "Data Channel is OPEN! Ready to send messages.");
+                    // Optionally, update UI to enable message sending input field
+                    runOnUiThread(() -> {
+                        // Example: chatMessageInput.setEnabled(true);
+                        // chatSendMessageButton.setEnabled(true);
+                        // You might want to visually indicate to the user that chat is ready
+                    });
+                } else if (state == DataChannel.State.CLOSING || state == DataChannel.State.CLOSED) {
+                    Log.w(tag_dataChannel, "Data Channel is CLOSING or CLOSED. Cannot send messages.");
+                    runOnUiThread(() -> {
+                        // Example: chatMessageInput.setEnabled(false);
+                        // chatSendMessageButton.setEnabled(false);
+                    });
+                }
+            }
+
             @Override
             public void onMessage(DataChannel.Buffer buffer) {
                 byte[] bytes = new byte[buffer.data.remaining()];
@@ -425,20 +540,6 @@ public class ChatActivity extends AppCompatActivity {
                     throw new RuntimeException(e);
                 }
 
-
-            }
-
-            @Override
-            public void onBufferedAmountChange(long l) {
-            }
-
-
-            @Override
-            public void onStateChange() {
-                Log.d("DC", "Data Channel State: " + dc.state());
-                if (dc.state() == DataChannel.State.OPEN) {
-                    Log.d("DC", "Data Channel is now OPEN!");
-                }
             }
         });
     }
@@ -447,27 +548,27 @@ public class ChatActivity extends AppCompatActivity {
         try {
             if (chatRoomSnap != null) chatRoomSnap.remove();
         } catch (Exception e) {
-            Log.e("ChatActivity", "Error removing chat room snapshot listener", e);
+            Log.e(tag, "Error removing chat room snapshot listener", e);
         }
         try {
             if (callerIceSnap != null) callerIceSnap.remove();
         } catch (Exception e) {
-            Log.e("ChatActivity", "Error removing caller ICE snapshot listener", e);
+            Log.e(tag, "Error removing caller ICE snapshot listener", e);
         }
         try {
             if (calleeIceSnap != null) calleeIceSnap.remove();
         } catch (Exception e) {
-            Log.e("ChatActivity", "Error removing callee ICE snapshot listener", e);
+            Log.e(tag, "Error removing callee ICE snapshot listener", e);
         }
         try {
             if (dataChannel != null) dataChannel.close();
         } catch (Exception e) {
-            Log.e("ChatActivity", "Error closing data channel", e);
+            Log.e(tag, "Error closing data channel", e);
         }
         try {
             if (peerConnection != null) peerConnection.close();
         } catch (Exception e) {
-            Log.e("ChatActivity", "Error closing peer connection", e);
+            Log.e(tag, "Error closing peer connection", e);
         }
 
     }
@@ -491,7 +592,7 @@ public class ChatActivity extends AppCompatActivity {
         @Override
         public void onEvent(QuerySnapshot snap, FirebaseFirestoreException error) {
             if (error != null || snap == null) {
-                Log.e("ChatActivity", "Error listening for ICE candidates", error);
+                Log.e(tag, "Error listening for ICE candidates", error);
                 return;
             }
 
@@ -500,7 +601,12 @@ public class ChatActivity extends AppCompatActivity {
                     IceCandidate candidate = new IceCandidate(change.getDocument().getString("sdpMid"),
                             Objects.requireNonNull(change.getDocument().getLong("sdpMLineIndex")).intValue(),
                             change.getDocument().getString("candidate"));
-                    peerConnection.addIceCandidate(candidate);
+
+                    if (isRemoteDescriptionSet) {
+                        peerConnection.addIceCandidate(candidate);
+                    } else {
+                        bufferedIceCandidates.add(candidate);
+                    }
                 }
             }
         }
@@ -516,12 +622,21 @@ public class ChatActivity extends AppCompatActivity {
         @Override
         public void onCreateSuccess(SessionDescription sessionDescription) {
             // Log only the type of the SDP for cleaner output
-            Log.d(tag, "SDP created successfully: " + sessionDescription.type.canonicalForm());
+            Log.d(tag, "SDP created successfully: " + sessionDescription.type.canonicalForm() + "\nSDP: " + sessionDescription.description);
         }
 
         @Override
         public void onSetSuccess() {
-            Log.d(tag, "SDP set successfully");
+            Log.d(tag, "SDP set successfully. PeerConnection State: " + peerConnection.signalingState());
+            if (this.tag.equals("remote")) {
+                isRemoteDescriptionSet = true;
+                Log.d("WebRTC", "Remote description set, processing buffered ICE candidates.");
+                for (IceCandidate candidate : bufferedIceCandidates) {
+                    peerConnection.addIceCandidate(candidate);
+                    Log.d("WebRTC", "Added buffered ICE candidate: " + candidate.sdp);
+                }
+                bufferedIceCandidates.clear();
+            }
         }
 
         @Override
@@ -531,50 +646,82 @@ public class ChatActivity extends AppCompatActivity {
 
         @Override
         public void onSetFailure(String s) {
-            Log.e(tag, "SDP setting failed: " + s);
+            Log.e(tag, "SDP setting failed: " + s + " Current PeerConnection state: " + peerConnection.signalingState());
         }
+    }
+
+    private void initializeWebRTCFactory() {
+        PeerConnectionFactory.InitializationOptions options = PeerConnectionFactory.InitializationOptions.builder(this)
+                .setEnableInternalTracer(true)
+                .createInitializationOptions();
+        PeerConnectionFactory.initialize(options);
+        //Logging.enableLogToDebugOutput(Logging.Severity.LS_VERBOSE);
+
+        try {
+            privateKey = KeyManager.getPrivateKey(this);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to get private key for encryption", e);
+        }
+
+        peerConnectionFactory = PeerConnectionFactory.builder()
+                .setOptions(new PeerConnectionFactory.Options())
+                .createPeerConnectionFactory();
     }
 
     private void enterRoomPresence() {
         String myId = FirebaseUtil.getCurrentUserId();
+
+        chatroomReference.get().addOnSuccessListener(snapshot -> {
+            if (snapshot.exists()) {
+                chatRoomModel = snapshot.toObject(ChatRoomModel.class);
+            } else {
+                chatRoomModel = new ChatRoomModel(chatRoomId, Arrays.asList(myId, otherUser.getUserId()), Timestamp.now(), "");
+                chatroomReference.set(chatRoomModel);
+            }
+        });
+
         String friendId = otherUser.getUserId();
         chatroomReference.update("active", FieldValue.arrayUnion(myId))
                 .addOnSuccessListener(r -> {
                     iAmInRoom = true;
+
+                    activeListener = chatroomReference.addSnapshotListener((snap, e) -> {
+                        if (e != null || snap == null) {
+                            return;
+                        }
+
+                        List<String> active = (List<String>) snap.get("active");
+                        if (active == null) active = Collections.emptyList();
+
+                        Log.d(tag, "Active users in room: " + active);
+                        if (!active.contains(myId)) {
+                            Log.w(tag, "My ID not found in active users, leaving room presence.");
+                            leaveRoomPresence();
+                            return;
+                        }
+
+                        boolean newPeerState = active.contains(friendId);
+                        Log.d(tag, "Peer " + friendId + " in room: " + newPeerState);
+                        if (newPeerState != isPeerInRoom) {
+                            isPeerInRoom = newPeerState;
+                            Log.d(tag, "Peer state changed. Is peer in room: " + isPeerInRoom);
+
+                            runOnUiThread(() -> {
+                                View status = findViewById(R.id.green_dot);
+                                status.setVisibility(isPeerInRoom ? View.VISIBLE : View.GONE);
+                            });
+                        }
+                    });
+                }).addOnFailureListener(r -> {
+                    iAmInRoom = false;
                 });
 
-        activeListener = chatroomReference.addSnapshotListener((snap, e) -> {
-            if (e != null || snap == null) {return;}
 
-            List<String> active = (List<String>) snap.get("active");
-            if (active == null) active = Collections.emptyList();
-
-            boolean newPeerState = active.contains(friendId);
-            if (newPeerState != isPeerInRoom) {
-                isPeerInRoom = newPeerState;
-
-                if (isPeerInRoom && iAmInRoom) {
-                    startOrContinueWebRtc();
-                } else if (!isPeerInRoom && peerConnection != null) {
-                    hangUp();
-                }
-
-                runOnUiThread(() -> {
-                    View status = findViewById(R.id.green_dot);
-                    status.setVisibility(isPeerInRoom ? View.VISIBLE : View.GONE);
-                });
-            }
-        });
     }
 
     private void leaveRoomPresence() {
         iAmInRoom = false;
         if (activeListener != null) activeListener.remove();
         chatroomReference.update("active", FieldValue.arrayRemove(FirebaseUtil.getCurrentUserId()));
-    }
-    private void startOrContinueWebRtc(){
-        if (peerConnection == null || dataChannel == null) {
-            setupWebRTC();
-        }
     }
 }
