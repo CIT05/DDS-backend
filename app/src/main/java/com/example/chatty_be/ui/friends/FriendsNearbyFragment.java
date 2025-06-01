@@ -188,27 +188,24 @@ public class FriendsNearbyFragment extends Fragment {
     }
 
     private void fetchNearbyUsers(String myCell,
-                                  double radiusMeters,
                                   String currentUserId,
                                   Timestamp now) {
 
         FirebaseUtil.allUserLocationReference()
-                // only exact same cell
                 .whereEqualTo("geoHash", myCell)
+                .whereNotEqualTo("userId", currentUserId)
                 .whereGreaterThan("expireAt", now)
                 .get()
                 .addOnSuccessListener(querySnapshot -> {
-                    Map<String, UserLocationModel> hits = new HashMap<>();
+                    Map<String, UserLocationModel> results = new HashMap<>();
                     for (QueryDocumentSnapshot doc : querySnapshot) {
                         UserLocationModel ul = doc.toObject(UserLocationModel.class);
-                        if (ul.getUserId().equals(currentUserId)) continue;
-                        hits.put(ul.getUserId(), ul);
+                        results.put(ul.getUserId(), ul);
                     }
-                    displayNearbyUsersDetails(hits);
+                    displayNearbyUsersDetails(results);
                 })
                 .addOnFailureListener(e -> {
                     Log.e("FriendsNearby", "Error fetching nearby cells", e);
-                    // show the real exception message to help you debug
                     displayError("Failed to load nearby cells: " + e.getMessage());
                 });
     }
@@ -241,11 +238,10 @@ public class FriendsNearbyFragment extends Fragment {
     private void saveUserLocation(Location location) {
         String currentUserId = FirebaseUtil.getCurrentUserId();
 
-        // 1) pick your blur-size (5 chars ≃4.9×4.9 km)
         String cell = LocationUtil.encodeGeohash(
                 location.getLatitude(),
                 location.getLongitude(),
-                /*precision=*/5
+                5
         );
 
         // 2) expire after 30 min
@@ -256,21 +252,16 @@ public class FriendsNearbyFragment extends Fragment {
 
         // 3) build the model
         UserLocationModel locModel = new UserLocationModel(
-                location.getLatitude(),
-                location.getLongitude(),
                 currentUserId,
                 expireAt,
                 cell
         );
 
-        // 4) write under user_locations/{uid}
         FirebaseUtil.getUserLocationReference(currentUserId)
                 .set(locModel)
                 .addOnSuccessListener(unused -> {
                     Log.d("FriendsNearby", "Saved geohash=" + cell);
-                    // kick off the nearby-friends lookup
                     fetchNearbyUsers(cell,
-                            /*radiusMeters=*/5000,
                             currentUserId,
                             Timestamp.now());
                 })
