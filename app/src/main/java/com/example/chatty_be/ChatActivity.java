@@ -97,7 +97,7 @@ public class ChatActivity extends AppCompatActivity {
             chatSession = ChatSessionStorage.getSendSession(chatRoomModel.getChatRoomId(), otherUser.getUserId(), manager);
 
             if (chatSession == null) {
-                Log.e("ChatSession", "Send session is null! Aborting message send.");
+                Log.e("ChatSession", "Cryptography - Send session is null! Aborting message send.");
                 return;
             }
 
@@ -118,9 +118,9 @@ public class ChatActivity extends AppCompatActivity {
             return;
         }
 
-        Log.d("SenderLog", "Ciphertext: " + encrypted.getCiphertext());
-        Log.d("SenderLog", "IV: " + encrypted.getIv());
-        Log.d("SenderLog", "Ephemeral Key: " + encrypted.getEphemeralPublicKey());
+        Log.d("SenderLog", "Cryptography - Ciphertext: " + encrypted.getCiphertext());
+        Log.d("SenderLog", "Cryptography - IV: " + encrypted.getIv());
+        Log.d("SenderLog", "Cryptography - Ephemeral Key: " + encrypted.getEphemeralPublicKey());
 
         ChatMessageModel chatMessageModel = new ChatMessageModel(
                 message,
