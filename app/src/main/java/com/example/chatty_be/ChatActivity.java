@@ -44,6 +44,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class ChatActivity extends AppCompatActivity {
 
@@ -79,6 +81,8 @@ public class ChatActivity extends AppCompatActivity {
 
     private boolean iAmCaller;
     private String tag = "ChatActivity WebRTC";
+
+    private ExecutorService decryptionExecuter;
 
     private List<IceCandidate> bufferedIceCandidates = new ArrayList<>();
     private boolean isRemoteDescriptionSet = false;
@@ -140,6 +144,8 @@ public class ChatActivity extends AppCompatActivity {
 
         initializeWebRTCFactory();
 
+        decryptionExecuter = Executors.newSingleThreadExecutor();
+
         chatroomReference = FirebaseUtil.getChatRoomReference(chatRoomId);
         iAmCaller = FirebaseUtil.getCurrentUserId().compareTo(otherUser.getUserId()) < 0;
         iAmCaller = FirebaseUtil.getCurrentUserId().compareTo(otherUser.getUserId()) < 0;
@@ -155,6 +161,9 @@ public class ChatActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if(decryptionExecuter != null) {
+            decryptionExecuter.shutdownNow();
+        }
         hangUp();
     }
 
@@ -208,6 +217,7 @@ public class ChatActivity extends AppCompatActivity {
         );
 
         String payload = MessagesUtil.convertChatMessageModelToPayload(chatMessageModel);
+
         dataChannel.send(new DataChannel.Buffer(
                 ByteBuffer.wrap(payload.getBytes(StandardCharsets.UTF_8)),
                 false
@@ -512,6 +522,10 @@ public class ChatActivity extends AppCompatActivity {
 
             @Override
             public void onMessage(DataChannel.Buffer buffer) {
+
+                if (decryptionExecuter == null || decryptionExecuter.isShutdown()) {
+                    return;
+                }
                 byte[] bytes = new byte[buffer.data.remaining()];
                 buffer.data.get(bytes);
                 String json = new String(bytes, StandardCharsets.UTF_8);
@@ -522,27 +536,32 @@ public class ChatActivity extends AppCompatActivity {
 
                 String senderId = receivedMessageModel.getSendeerId();
 
-                try {
-                    ChatSession session = ChatSessionStorage.getReceiveSession(
-                            senderId,
-                            enc.getEphemeralPublicKey(),
-                            privateKey
-                    );
+                decryptionExecuter.execute(() -> {
+                    String plaintext = null;
 
-                    String plaintext = MessagesUtil.decryptMessage(enc.getCiphertext(), enc.getIv(), session);
+                    try {
+                        ChatSession session = ChatSessionStorage.getReceiveSession(
+                                senderId,
+                                enc.getEphemeralPublicKey(),
+                                privateKey
+                        );
+                        plaintext = MessagesUtil.decryptMessage(enc.getCiphertext(), enc.getIv(), session);
+                    } catch (Exception e) {
+                        plaintext = "[Undecryptable]";
+                    }
+                    final String finalPlaintext = plaintext;
 
-                    runOnUiThread(() -> adapter.addMessage(
-                            new ChatMessageModel(plaintext, enc,
-                                    otherUser.getUserId(), Timestamp.now())
-                    ));
-
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-
+                    runOnUiThread(() -> {
+                        adapter.addMessage(
+                                new ChatMessageModel(finalPlaintext, enc,
+                                        otherUser.getUserId(), Timestamp.now())
+                        );
+                    });
+                });
             }
         });
     }
+
 
     private void hangUp() {
         try {
