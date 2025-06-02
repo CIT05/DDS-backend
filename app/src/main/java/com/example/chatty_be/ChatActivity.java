@@ -273,8 +273,8 @@ public class ChatActivity extends AppCompatActivity {
 
         iceServers.add(PeerConnection.IceServer.builder("stun:stun.l.google.com:19302").createIceServer());
 
-        String xirsysUsername = "y2V9yEou0l9RrWShaX0ld2c0Bq5DbLzb1ugTD4_XueS1giWFEVE7DaYbpfeURiKoAAAAAGg53HljaGF0dHlhcHA=";
-        String xirsysPassword = "fff26650-3d72-11f0-bbf1-76124099d603";
+        String xirsysUsername = "XXX";
+        String xirsysPassword = "XXX";
 
         // TURN server configuration --UDP
         iceServers.add(PeerConnection.IceServer.builder("turn:fr-turn2.xirsys.com:80?transport=udp")
